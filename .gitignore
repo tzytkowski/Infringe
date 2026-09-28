@@ -1,6 +1,10 @@
 node_modules/
 .npm-cache/
 .next/
+.next-cjic-dev/
 out/
 .env*.local
 *.tsbuildinfo
+public/data/michigan-cjic/prepared/
+public/data/michigan-cjic/crime-live.csv
+public/data/michigan-cjic/victim-live.csv

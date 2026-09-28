@@ -1,4 +1,4 @@
-import { CLEMIS_LAYER, COUNTY_QUERY_GEOMETRY, DETROIT_LAYER, type CrimeSource, type Incident, type IncidentResponse } from './crime';
+import { CLEMIS_LAYER, COUNTY_QUERY_GEOMETRY, DETROIT_LAYER, type RemoteSource, type Incident, type IncidentResponse } from './crime';
 
 type ArcFeature = { attributes?: Record<string, unknown>; geometry?: { x?: number; y?: number } };
 type ArcResponse = { features?: ArcFeature[]; count?: number; error?: { message?: string } };
@@ -14,7 +14,7 @@ function dateWhere(days: number, field: string) {
   return `${field} >= TIMESTAMP '${stamp}'`;
 }
 
-async function query(source: CrimeSource, params: URLSearchParams, signal: AbortSignal): Promise<ArcResponse> {
+async function query(source: RemoteSource, params: URLSearchParams, signal: AbortSignal): Promise<ArcResponse> {
   const layer = source === 'clemis' ? CLEMIS_LAYER : DETROIT_LAYER;
   // POST keeps the county polygon out of the URL. ArcGIS Online permits browser CORS requests.
   const response = await fetch(`${layer}/query`, {
@@ -29,7 +29,7 @@ async function query(source: CrimeSource, params: URLSearchParams, signal: Abort
   return data;
 }
 
-function baseQuery(source: CrimeSource, where: string) {
+function baseQuery(source: RemoteSource, where: string) {
   const params = new URLSearchParams({ where, f: 'json' });
   if (source === 'clemis') {
     params.set('geometry', COUNTY_QUERY_GEOMETRY);
@@ -40,7 +40,7 @@ function baseQuery(source: CrimeSource, where: string) {
   return params;
 }
 
-export async function fetchCategories(source: CrimeSource, signal: AbortSignal): Promise<string[]> {
+export async function fetchCategories(source: RemoteSource, signal: AbortSignal): Promise<string[]> {
   const field = source === 'clemis' ? 'CRIME_DESC' : 'offense_category';
   const params = baseQuery(source, `${field} IS NOT NULL`);
   params.set('outFields', field);
@@ -55,14 +55,16 @@ export async function fetchCategories(source: CrimeSource, signal: AbortSignal):
     .map((value) => value.trim()))].sort();
 }
 
-export async function fetchIncidents(source: CrimeSource, period: string, category: string, offset: number, signal: AbortSignal): Promise<IncidentResponse> {
+export async function fetchIncidents(source: RemoteSource, period: string, category: string, offset: number, signal: AbortSignal): Promise<IncidentResponse> {
   const currentYear = new Date().getUTCFullYear();
   const field = source === 'clemis' ? 'FROM_DATE' : 'incident_occurred_at';
   let where: string;
-  if (period === '24h') where = dateWhere(1, field);
+  if (period === 'all') where = '1=1';
+  else if (period === '24h') where = dateWhere(1, field);
   else if (period === '7d') where = dateWhere(7, field);
   else if (period === '30d') where = dateWhere(30, field);
-  else if (/^\d{4}$/.test(period) && Number(period) >= (source === 'clemis' ? 2026 : 2016) && Number(period) <= currentYear) {
+  else if (/^\d{4}$/.test(period) && Number(period) >= 2016 && Number(period) <= currentYear) {
+    if (source === 'clemis' && Number(period) < 2026) return { incidents: [], total: 0, offset, limit: 1000, nextOffset: offset, fetchedAt: new Date().toISOString() };
     where = source === 'clemis'
       ? `FROM_DATE >= TIMESTAMP '${period}-01-01 00:00:00' AND FROM_DATE < TIMESTAMP '${Number(period) + 1}-01-01 00:00:00'`
       : `incident_year = ${Number(period)}`;
@@ -90,7 +92,8 @@ export async function fetchIncidents(source: CrimeSource, period: string, catego
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
     if (source === 'detroit' && (longitude < -85 || longitude > -81 || latitude < 41 || latitude > 44)) return [];
     return [{
-      id: source === 'clemis' ? `clemis-${String(a.OBJECTID ?? '')}` : String(a.ESRI_OID ?? ''),
+      id: `${source}-${String(source === 'clemis' ? a.OBJECTID ?? '' : a.ESRI_OID ?? '')}`,
+      source,
       category: String((source === 'clemis' ? a.CRIME_DESC : a.offense_category) || 'Uncategorized').trim(),
       description: String((source === 'clemis' ? a.CHARGEDESCRIPTION || a.CRIME_DESC : a.offense_description || a.offense_category) || 'Reported offense').trim(),
       occurredAt: typeof a[field] === 'number' ? a[field] as number : null,
@@ -98,7 +101,8 @@ export async function fetchIncidents(source: CrimeSource, period: string, catego
       intersection: a[source === 'clemis' ? 'LOCATION' : 'nearest_intersection'] ? String(a[source === 'clemis' ? 'LOCATION' : 'nearest_intersection']).trim() : null,
       precinct: source === 'detroit' && a.police_precinct ? String(a.police_precinct) : null,
       status: source === 'detroit' && a.case_status ? String(a.case_status) : null,
-      longitude, latitude,
+      longitude, latitude, locationPrecision: 'point',
+      fields: Object.fromEntries(Object.entries(a).map(([key, value]) => [key, value == null ? null : typeof value === 'number' ? value : String(value)])),
     }];
   });
   return { incidents, total: typeof counts.count === 'number' ? counts.count : null,

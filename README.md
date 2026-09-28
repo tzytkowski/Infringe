@@ -1,6 +1,6 @@
 # Infringe · Metro Detroit Crime Atlas
 
-A root-level Next.js and MapLibre app inspired by the map interface in `OSIRIS/osiris`. It plots public Detroit Police Department Records Management System (RMS) and regional CLEMIS offense records as separate sources. Filter by recent period, year, and offense category; pan and zoom the map; load additional pages from the incident stream.
+A root-level Next.js and MapLibre app inspired by the map interface in `OSIRIS/osiris`. Select any combination of Detroit Police, regional CLEMIS, Michigan CJIC crime, and Michigan CJIC victim data. Filter by period, offense, and reported victim race; inspect every original source field in record details.
 
 ## Run locally
 
@@ -9,7 +9,16 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. `npm run typecheck` and `npm run build` verify the app.
+Open <http://localhost:3000>. Startup and builds automatically prepare the downloaded CJIC files. `npm run typecheck`, `npm run test:cjic`, and `npm run build` verify the app.
+
+If another development instance is already running, use an independent output directory and port:
+
+```powershell
+$env:INFRINGE_DIST_DIR='.next-cjic-dev'
+npm run dev -- --port 3002
+```
+
+Open <http://localhost:3002> for that instance.
 
 ## Publish on GitHub Pages
 
@@ -38,12 +47,24 @@ Then open <http://127.0.0.1:3001/Infringe/>.
 
 If you use a custom domain, remove the `NEXT_PUBLIC_BASE_PATH` setting in the workflow so asset URLs start at `/`. Public ArcGIS requests are made directly from the browser; any later private API or scanner ingestion will need a separate server.
 
+## CJIC Files and Race Filters
+
+The downloaded `public/data/michigan-cjic/crime-live.csv` and `victim-live.csv` contain only Macomb and Oakland counties, with 500,937 crime rows and 320,517 victim rows for 2021-2026. They are tab-delimited UTF-16 exports despite the `.csv` extension. The downloaded Live Data snapshot ends June 30, 2026; it is not a continuously updating feed.
+
+`npm run data:cjic` creates lossless, dictionary-encoded year files in the ignored `public/data/michigan-cjic/prepared/` directory. A browser worker filters the entire selected dataset, searches all original fields, and calculates map totals before paginating the record list. The tests compare every original row and field to the prepared data and check map totals, pagination, source selection, and race linkage.
+
+These CSVs contain reporting city/county and incident year, but no exact dates, street addresses, or incident coordinates. `OFFENSE_LOCATION` describes the type of premises, not an address. CJIC records therefore have null incident coordinates: they never create point hotspots or selected incident dots. CJIC heat colors the actual [Michigan Geographic Framework city, township, and village boundaries](https://gisagocss.state.mi.us/arcgis/rest/services/OpenData/michigan_geographic_framework/MapServer), clipped to the row's county. Cross-county places such as Northville use only the correct county portion. Colors represent matching rows per square kilometer, on a labeled logarithmic scale, using the same teal-to-red palette as agency heat. This is reporting-area density, not measured within-area distribution or population-adjusted crime risk. Institutions and other entries without a verified municipal boundary remain in records and totals, but are excluded from municipal heat and retained as county-only outlines and details. Selecting a CJIC record highlights its reporting boundary, never a made-up point. Recent day/week/month filters cannot include year-only CJIC dates.
+
+Race is victim race. Victim rows filter on their original `RACE` value. Crime rows filter using victim races joined by county, year, `MICR_INCIDENTS_ID`, and `MICR_OFFENSE`; unlinked crime rows have no attributed race. Multiple selected races match any of those races. A crime row with several linked victim races remains one crime row. Detroit/CLEMIS records have no race fields and are excluded when a specific race filter is active. Clearing the race filter restores them. The selected sources may overlap, and crime rows and victim rows are never described as unique crimes.
+
+Replace the two source files and restart or run `npm run data:cjic` to prepare a new download. The geography is bundled locally; `node tools/download-cjic-geography.mjs` refreshes the official boundary snapshot when needed.
+
 ## Data and coverage
 
 - **Detroit Police · city** reads the [City of Detroit RMS Crime Incidents dataset](https://data.detroitmi.gov/datasets/detroitmi::rms-crime-incidents/about) through its [ArcGIS FeatureServer](https://services2.arcgis.com/qvkbeam7Wirps6zC/ArcGIS/rest/services/RMS_Crime_Incidents/FeatureServer/0). The city says records are extracted hourly. Detroit history starts in December 2016.
 - **Oakland + Macomb · CLEMIS** reads the public [CLEMIS offense layer](https://services1.arcgis.com/cobAR8TNI9VyhY8z/arcgis/rest/services/PublicCrimeSearchOffenses/FeatureServer/4) used by the [CLEMIS Public Crime Search](https://experience.arcgis.com/experience/a945468523494efe97f8ab28d689f6dd). The default map now spans both full counties. Incident and category queries use generalized Oakland and Macomb polygons from the public [Michigan County Boundaries layer](https://services8.arcgis.com/oPzYIHLHP6C6pRlh/ArcGIS/rest/services/Michigan_County_Boundaries/FeatureServer/9). The public crime layer covers only participating agencies, so it does not provide complete crime reporting for every city or department. The map focus control zooms to both counties, Oakland, or Macomb; counts and records always use both counties. As checked in September 2026, the public layer has 2026 records but no 2025 records in this region; its year selector starts at 2026.
-- The sources remain separate because agency coverage, offense labels, and publication schedules differ. A row represents an offense, so one event can have multiple rows. Locations may be approximate. Counts reflect the selected source and filters; the map initially loads up to 1,000 CLEMIS or 500 Detroit records, and **Load more records** pages through the rest. The heatmap and group summary describe **loaded records only**. Heat colors show relative concentration at the current zoom, not a crime rate or a comparison across different filter selections. Recent selections refresh every five minutes and are not a live dispatch feed.
-- Neither incident layer has a **victim, suspect, or arrestee race field**. The race control therefore reports that it is unavailable. It would be misleading to infer a person's race from a neighborhood, scanner transmission, or Facebook post. The Michigan State Police [MICR data standard](https://www.michigan.gov/msp/divisions/cjic/micr/micr-data-elements) defines victim, offender, and arrest race separately; its [crime dashboard](https://www.michigan.gov/msp/divisions/cjic/dashboard-portal) is a separate statewide source and cannot assign race to these map points.
+- Sources can be selected together, with each row labeled by source. The agency heatmap initially includes up to 1,000 CLEMIS and 500 Detroit rows; **Load more records** extends those agency layers. CJIC boundary heat and group counts use every matching CJIC row from the selected years regardless of record pagination. Adding CJIC does not change agency point weights. Agency heat colors show relative concentration at the current zoom, not a crime rate. Recent agency selections refresh every five minutes.
+- The mapped Detroit and CLEMIS layers have no race fields. CJIC victim race is kept with its original records and reporting areas; the app does not infer race for Detroit or CLEMIS points.
 
 ## Scanner and Facebook reports
 

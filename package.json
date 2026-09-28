@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node tools/prepare-map-worker.mjs",
+    "predev": "node tools/prepare-map-worker.mjs && node tools/prepare-cjic.mjs",
     "dev": "next dev",
-    "prebuild": "node tools/prepare-map-worker.mjs",
+    "prebuild": "node tools/prepare-map-worker.mjs && node tools/prepare-cjic.mjs",
+    "data:cjic": "node tools/prepare-cjic.mjs",
+    "test:cjic": "node --test tools/cjic.test.mjs",
     "build": "next build",
     "preview:pages": "node tools/preview-pages.mjs",
     "typecheck": "tsc --noEmit"
@@ -18,9 +20,15 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@terraformer/arcgis": "^2.2.2",
+    "@turf/area": "^7.4.0",
+    "@turf/boolean-point-in-polygon": "^7.4.0",
+    "@turf/helpers": "^7.4.0",
+    "@turf/intersect": "^7.4.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "csv-parse": "^7.0.3",
     "typescript": "^5"
   }
 }
