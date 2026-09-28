@@ -5,6 +5,8 @@ node_modules/
 out/
 .env*.local
 *.tsbuildinfo
-public/data/michigan-cjic/prepared/
+public/data/michigan-cjic/prepared/*
+!public/data/michigan-cjic/prepared/
+!public/data/michigan-cjic/prepared/*.json
 public/data/michigan-cjic/crime-live.csv
 public/data/michigan-cjic/victim-live.csv

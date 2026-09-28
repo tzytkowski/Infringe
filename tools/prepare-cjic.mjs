@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { mkdir, open, readFile, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, readFile, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { parse } from 'csv-parse';
 import { buildReportingAreas } from './cjic-geography.mjs';
@@ -8,6 +8,33 @@ const root = 'public/data/michigan-cjic';
 const destination = `${root}/prepared`;
 const inputs = ['victim', 'crime'];
 const schemaVersion = 2;
+
+async function preparedDataIsComplete() {
+  try {
+    const previous = JSON.parse(await readFile(`${destination}/manifest.json`, 'utf8'));
+    await Promise.all(Object.values(previous.sources).flatMap((source) => source.chunks.map((chunk) => stat(`${destination}/${chunk.file}`))));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const missingInputs = [];
+for (const name of inputs) {
+  try {
+    await access(`${root}/${name}-live.csv`);
+  } catch {
+    missingInputs.push(`${name}-live.csv`);
+  }
+}
+if (missingInputs.length > 0) {
+  if (await preparedDataIsComplete()) {
+    console.log(`CJIC source CSVs are absent (${missingInputs.join(', ')}); using committed prepared data.`);
+    process.exit(0);
+  }
+  throw new Error(`Missing CJIC source CSVs: ${missingInputs.join(', ')}. Add prepared data or restore the CSV exports.`);
+}
+
 const fingerprints = await Promise.all(inputs.map(async (name) => {
   const info = await stat(`${root}/${name}-live.csv`);
   return { name, size: info.size, modified: info.mtimeMs };
@@ -16,11 +43,11 @@ const geographyText = await readFile(`${root}/reporting-geography.json`, 'utf8')
 const countyText = await readFile('src/lib/county-boundaries.json', 'utf8');
 const version = createHash('sha256').update(JSON.stringify({ schemaVersion, fingerprints, geographyText, countyText })).digest('hex').slice(0, 16);
 try {
-  const previous = JSON.parse(await readFile(`${destination}/manifest.json`, 'utf8'));
-  if (previous.version === version) {
-    await Promise.all(Object.values(previous.sources).flatMap((source) => source.chunks.map((chunk) => stat(`${destination}/${chunk.file}`))));
-    console.log('CJIC data is up to date.');
-    process.exit(0);
+  if (JSON.parse(await readFile(`${destination}/manifest.json`, 'utf8')).version === version) {
+    if (await preparedDataIsComplete()) {
+      console.log('CJIC data is up to date.');
+      process.exit(0);
+    }
   }
 } catch { /* Rebuild when the input files or generated files change. */ }
 
