@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDown, ArrowUpRight, Crosshair, Database, Download, ExternalLink, Filter, Info, Radio, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
+import { Activity, ArrowDown, ArrowUpRight, ChevronDown, Crosshair, Database, Download, ExternalLink, Filter, Info, Radio, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import { CJIC_SOURCE, CLEMIS_SOURCE, DATA_SOURCES, crimeGroup, isCJIC, recordDate, type CJICManifest, type CJICResponse, type CrimeSource, type IncidentResponse, type RegionalFocus, type RemoteSource } from '@/lib/crime';
 import { fetchCategories, fetchIncidents } from '@/lib/arcgis-client';
 import { fetchCJIC, fetchCJICManifest } from '@/lib/cjic-client';
@@ -21,9 +21,9 @@ function SelectAll({ checked, mixed, onChange, label }: { checked: boolean; mixe
 }
 
 export default function Home() {
-  const [sources, setSources] = useState<CrimeSource[]>(['clemis', 'cjic-crime', 'cjic-victim']);
+  const [sources, setSources] = useState<CrimeSource[]>(['clemis']);
   const [regionalFocus, setRegionalFocus] = useState<RegionalFocus>('both');
-  const [period, setPeriod] = useState(String(currentYear));
+  const [period, setPeriod] = useState('24h');
   const [category, setCategory] = useState('');
   const [remoteCategories, setRemoteCategories] = useState<string[]>([]);
   const [races, setRaces] = useState<string[]>([]);
@@ -41,6 +41,7 @@ export default function Home() {
   const [refresh, setRefresh] = useState(0);
   const [resetSignal, setResetSignal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const sourceKey = sources.join('|');
   const raceKey = races.join('|');
   const hasCJIC = sources.some(isCJIC);
@@ -197,7 +198,6 @@ export default function Home() {
 
     <aside className={`sidebar ${mobileFilters ? 'filters-open' : ''}`} id="data-filters">
       <div className="side-heading"><span>EXPLORER</span><Filter size={15} /></div>
-      <div className="intro-card"><div className="eyebrow"><Activity size={13} /> METRO DETROIT</div><h1>Crime &amp; victim<br /><em>records.</em></h1></div>
       <section className="filter-section"><div className="section-label"><span>01</span> DATA SOURCES</div>
         <fieldset className="checkbox-group"><legend className="field-label">Coverage</legend><SelectAll label="All data sources" checked={sources.length === DATA_SOURCES.length} mixed={sources.length > 0 && sources.length < DATA_SOURCES.length} onChange={() => { const next = sources.length === DATA_SOURCES.length ? [] : DATA_SOURCES.map((entry) => entry.id); setSources(next); setCategory(''); if (!next.length) setRaces([]); }} />
           {DATA_SOURCES.map((entry) => <label className="source-option" key={entry.id}><input type="checkbox" checked={sources.includes(entry.id)} onChange={() => toggleSource(entry.id)} /><span className="source-option-body"><strong><i style={{ background: entry.color }} />{entry.label}</strong><small>{entry.coverage}</small>{sources.includes(entry.id) && <small className="source-status">{sourceStatus(entry.id)}</small>}</span></label>)}
@@ -226,7 +226,7 @@ export default function Home() {
     <main className="main">
       <div className="stats-row"><div className="stat"><small>MATCHING ROWS</small><strong>{loading ? '...' : total.toLocaleString()}</strong><span>{errors.length ? 'partial source results' : 'selected sources / current filters'}</span></div><div className="stat"><small>AGENCY MAP POINTS</small><strong>{visibleRemote.length.toLocaleString()}</strong><span>loaded CLEMIS / Detroit records</span></div><div className="stat"><small>CJIC MAP ROWS</small><strong>{localLoading ? '...' : (local?.total || 0).toLocaleString()}</strong><span>{local?.areas.length || 0} reporting areas / all matches</span></div><div className="stat source-stat"><small>OFFENSE GROUPS</small><strong>{Object.keys(groupCounts).length}</strong><span>{sources.length} selected data sources</span></div></div>
       <div className="workspace"><section className="map-panel"><CrimeMap incidents={incidents} selectedId={selectedId} selectedAreaKey={selectedAreaKey} onSelect={selectRecord} resetSignal={resetSignal} sources={sources} areas={local?.areas || []} onSelectArea={selectArea} regionalFocus={regionalFocus} /><div className="map-topline"><span><Activity size={13} />{regionalFocus === 'oakland' ? 'OAKLAND COUNTY' : regionalFocus === 'macomb' ? 'MACOMB COUNTY' : 'METRO DETROIT'}</span><button className="reset-view" title="Reset map view" aria-label="Reset map view" onClick={() => setResetSignal((value) => value + 1)}><Crosshair size={14} /></button></div>
-        <div className="heat-legend">{(hasAgency || !hasCJIC) && <div><div className="heat-legend-heading"><span>AGENCY INCIDENTS</span><b>RELATIVE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>LOW</span><span>MODERATE</span><span>HIGH</span></div></div>}{hasCJIC && <div className={hasAgency ? 'area-legend' : ''}><div className="heat-legend-heading"><span>CJIC ROWS / SQ KM</span><b>LOG SCALE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>0</span><span>{densityLabel(densityScaleMidpoint(maximumDensity))}</span><span>{densityLabel(maximumDensity)}</span></div><small className="geography-note">Reporting boundaries, not incident points. {countyOnlyRows.toLocaleString()} county-only rows excluded from municipal heat.</small></div>}</div>
+        <div className="heat-legend"><button className="heat-legend-toggle" type="button" aria-expanded={legendOpen} aria-label={legendOpen ? 'Hide map legend' : 'Show map legend'} onClick={() => setLegendOpen((open) => !open)}><span>MAP LEGEND</span><ChevronDown size={13} /></button>{legendOpen && <div className="heat-legend-content">{(hasAgency || !hasCJIC) && <div><div className="heat-legend-heading"><span>AGENCY INCIDENTS</span><b>RELATIVE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>LOW</span><span>MODERATE</span><span>HIGH</span></div></div>}{hasCJIC && <div className={hasAgency ? 'area-legend' : ''}><div className="heat-legend-heading"><span>CJIC ROWS / SQ KM</span><b>LOG SCALE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>0</span><span>{densityLabel(densityScaleMidpoint(maximumDensity))}</span><span>{densityLabel(maximumDensity)}</span></div><small className="geography-note">Reporting boundaries, not incident points. {countyOnlyRows.toLocaleString()} county-only rows excluded from municipal heat.</small></div>}</div>}</div>
         <div className="map-bottomline"><span><i className="map-dot" />{loading ? 'LOADING RECORDS' : `${visibleRemote.length.toLocaleString()} POINTS / ${(local?.total || 0).toLocaleString()} CJIC ROWS`}</span></div>
         {errors.length > 0 && <div className="map-error" role="alert"><ShieldAlert size={20} /><div><strong>Some source data is unavailable</strong>{errors.map((error) => <span key={error}>{error}</span>)}</div><button className="icon-button" title="Retry unavailable sources" aria-label="Retry unavailable sources" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={14} /></button></div>}
       </section>
