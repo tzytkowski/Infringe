@@ -83,6 +83,24 @@ export type CJICResponse = {
   areas: AreaSummary[];
   groups: Record<string, number>;
   fetchedAt: string;
+  analysis?: {
+    byYear: CJICBreakdown[];
+    byOffense: CJICBreakdown[];
+    victimRaces: Record<string, number>;
+    victimAges: Record<string, number>;
+    victimSex: Record<string, number>;
+  };
+};
+export type CJICBreakdown = { key: string; crime: number; victims: number };
+export type CJICMetric = 'crime' | 'victims' | 'combined';
+export type ComparisonMap = {
+  a: CJICResponse;
+  b: CJICResponse;
+  aLabel: string;
+  bLabel: string;
+  metric: 'crime' | 'victims';
+  view: 'a' | 'b' | 'change';
+  density: boolean;
 };
 
 export function recordDate(item: Incident) {

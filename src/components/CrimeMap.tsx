@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
-import { REGIONAL_FOCUS_BOUNDS, type AreaSummary, type CrimeSource, type Incident, type RegionalFocus } from '@/lib/crime';
-import { agencyHeatWeight, reportingDensity, reportingDensityMaximum, reportingHeatValue } from '@/lib/map-density';
+import { REGIONAL_FOCUS_BOUNDS, type AreaSummary, type CJICMetric, type ComparisonMap, type CrimeSource, type Incident, type RegionalFocus } from '@/lib/crime';
+import { agencyHeatWeight, reportingCount, reportingDensity, reportingDensityMaximum, reportingHeatValue } from '@/lib/map-density';
+import { comparisonFeatures } from '@/lib/cjic-comparison';
 
 type Props = {
   incidents: Incident[];
@@ -15,12 +16,14 @@ type Props = {
   areas: AreaSummary[];
   onSelectArea: (key: string) => void;
   regionalFocus: RegionalFocus;
+  metric: CJICMetric;
+  comparison: ComparisonMap | null;
 };
 
 const DETROIT_BOUNDS: [number, number, number, number] = [-83.35, 42.21, -82.88, 42.49];
 const COMBINED_BOUNDS: [number, number, number, number] = [-83.71, 42.21, -82.68, 42.92];
 
-export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSelect, resetSignal, sources, areas, onSelectArea, regionalFocus }: Props) {
+export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSelect, resetSignal, sources, areas, onSelectArea, regionalFocus, metric, comparison }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
@@ -30,11 +33,21 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   onSelectAreaRef.current = onSelectArea;
   const areasRef = useRef(areas);
   areasRef.current = areas;
+  const comparisonRef = useRef(comparison);
+  comparisonRef.current = comparison;
+  const metricRef = useRef(metric);
+  metricRef.current = metric;
+  const sourcesRef = useRef(sources);
+  sourcesRef.current = sources;
   const bounds = sources.length === 1 && sources[0] === 'detroit' && regionalFocus === 'both' ? DETROIT_BOUNDS
     : sources.includes('detroit') && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
   const boundsKey = bounds.join(',');
   const boundsRef = useRef(bounds);
-  boundsRef.current = bounds;
+  const comparisonBounds = comparison && areas.length ? areas.reduce<[number, number, number, number]>((result, area) => [
+    Math.min(result[0], area.bounds[0]), Math.min(result[1], area.bounds[1]), Math.max(result[2], area.bounds[2]), Math.max(result[3], area.bounds[3]),
+  ], [Infinity, Infinity, -Infinity, -Infinity]) : null;
+  const comparisonBoundsKey = comparisonBounds?.join(',') ?? '';
+  boundsRef.current = comparisonBounds || bounds;
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -76,9 +89,8 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         id: 'cjic-area-heat', type: 'fill', source: 'cjic-areas',
         filter: ['==', ['get', 'precision'], 'reporting-area'],
         paint: {
-          'fill-color': ['interpolate', ['linear'], ['get', 'heat'],
-            0, '#287e9e', 0.27, '#2db1c1', 0.45, '#70d3c2', 0.7, '#f1bc69', 0.88, '#f97752', 1, '#ef4c4e'],
-          'fill-opacity': 0.55,
+          'fill-color': '#24333b',
+          'fill-opacity': 0.75,
         },
       });
       instance.addLayer({
@@ -149,10 +161,26 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         const title = document.createElement('strong');
         title.textContent = `${area.city}, ${area.county}`;
         const counts = document.createElement('p');
-        counts.textContent = `${area.crime.toLocaleString()} crime rows / ${area.victims.toLocaleString()} victim rows`;
+        const activeComparison = comparisonRef.current;
+        const entry = activeComparison ? comparisonFeatures(activeComparison).find((item) => item.area.key === key) : null;
+        if (activeComparison && entry) {
+          for (const [name, cohort, label] of [['A', entry.a, activeComparison.aLabel], ['B', entry.b, activeComparison.bLabel]] as const) {
+            const detail = document.createElement('p');
+            detail.textContent = `${name} (${label}): ${cohort ? `${cohort.crime.toLocaleString()} crime / ${cohort.victims.toLocaleString()} victim rows` : 'outside this cohort'}`;
+            counts.append(detail);
+          }
+          const difference = document.createElement('small');
+          difference.textContent = entry.aValue !== null && entry.bValue !== null
+            ? `B − A: ${(entry.bValue - entry.aValue).toLocaleString(undefined, { maximumFractionDigits: 1 })} ${activeComparison.metric === 'crime' ? 'crime' : 'victim'} rows${activeComparison.density ? ' / sq km' : ''}`
+            : 'Change is unavailable outside one cohort.';
+          counts.append(difference);
+        } else {
+          counts.textContent = `${sourcesRef.current.includes('cjic-crime') ? `${area.crime.toLocaleString()} crime rows` : 'Crime source not selected'} / ${sourcesRef.current.includes('cjic-victim') ? `${area.victims.toLocaleString()} victim rows` : 'Victim source not selected'}`;
+        }
         const note = document.createElement('small');
         note.textContent = area.precision === 'county' ? 'Unresolved reporting locations: excluded from municipal heat.'
-          : `${reportingDensity(area)!.toLocaleString(undefined, { maximumFractionDigits: 1 })} rows per sq km across the reporting boundary; no exact incident coordinates.`;
+          : activeComparison ? 'Reporting boundary; no exact incident coordinates or population-adjusted risk.'
+          : `${reportingDensity(area, metricRef.current)!.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${metricRef.current === 'combined' ? 'selected' : metricRef.current === 'crime' ? 'crime' : 'victim'} rows per sq km across the reporting boundary; no exact incident coordinates.`;
         content.append(title, counts, note);
         popup.current?.remove();
         popup.current = new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(content).addTo(instance);
@@ -184,16 +212,34 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
           })),
       });
       const areaSource = instance.getSource('cjic-areas') as maplibregl.GeoJSONSource | undefined;
-      const maximum = reportingDensityMaximum(areas);
-      areaSource?.setData({ type: 'FeatureCollection', features: [...areas].sort((a, b) => b.areaKm2 - a.areaKm2).map((area) => ({
+      const maximum = reportingDensityMaximum(areas, metric);
+      const entries = comparison ? comparisonFeatures(comparison) : null;
+      const features = entries ? entries.map((entry) => ({
+        type: 'Feature' as const, geometry: entry.area.geometry,
+        properties: { key: entry.area.key, heat: entry.heat, count: entry.value, precision: entry.area.precision, areaKm2: entry.area.areaKm2,
+          side: comparison!.view !== 'change' ? 'pair' : !entry.a ? 'b' : !entry.b ? 'a' : 'pair' },
+      })) : areas.map((area) => ({
         type: 'Feature', geometry: area.geometry,
-        properties: { key: area.key, heat: reportingHeatValue(area, maximum), precision: area.precision },
-      })) });
+        properties: { key: area.key, heat: reportingHeatValue(area, maximum, metric), count: reportingCount(area, metric), precision: area.precision, areaKm2: area.areaKm2, side: 'pair' },
+      }));
+      areaSource?.setData({ type: 'FeatureCollection', features: features.sort((a, b) => b.properties.areaKm2 - a.properties.areaKm2) as GeoJSON.Feature[] });
+      // Draw small village overlays after enclosing townships, including neutral
+      // zero-match overlays, so each clickable place keeps its own count.
+      const normalPalette: maplibregl.ExpressionSpecification = ['interpolate', ['linear'], ['get', 'heat'],
+        0, '#287e9e', 0.27, '#2db1c1', 0.45, '#70d3c2', 0.7, '#f1bc69', 0.88, '#f97752', 1, '#ef4c4e'];
+      const changePalette: maplibregl.ExpressionSpecification = ['interpolate', ['linear'], ['get', 'heat'], -1, '#43aade', 0, '#34414a', 1, '#f4ba63'];
+      instance.setPaintProperty('cjic-area-heat', 'fill-color', ['case',
+        ['==', ['get', 'side'], 'a'], '#70bde5', ['==', ['get', 'side'], 'b'], '#f4ba63',
+        ['any', ['==', ['get', 'count'], 0], ['==', ['get', 'count'], null]], '#24333b',
+        comparison?.view === 'change' ? changePalette : normalPalette]);
+      instance.setPaintProperty('cjic-area-heat', 'fill-opacity', ['case', ['any', ['==', ['get', 'count'], 0], ['==', ['get', 'count'], null]], 0.95, 0.68]);
+      instance.setLayoutProperty('incident-density', 'visibility', comparison ? 'none' : 'visible');
+      instance.setLayoutProperty('incident-hit-targets', 'visibility', comparison ? 'none' : 'visible');
     };
     if (instance.getSource('incidents')) update();
     else instance.once('load', update);
     return () => { instance.off('load', update); };
-  }, [incidents, sources, areas]);
+  }, [incidents, sources, areas, metric, comparison]);
 
   useEffect(() => {
     const instance = map.current;
@@ -212,6 +258,10 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   useEffect(() => {
     if (map.current) map.current.fitBounds(bounds, { padding: 28, duration: 700 });
   }, [resetSignal, boundsKey]);
+
+  useEffect(() => {
+    if (map.current && comparisonBounds) map.current.fitBounds(comparisonBounds, { padding: 48, maxZoom: 13, duration: 700 });
+  }, [comparisonBoundsKey]);
 
   return <div className="map-canvas" ref={container} aria-label="Agency incident heatmap and CJIC reporting-boundary density map" />;
 }

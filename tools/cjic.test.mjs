@@ -10,11 +10,16 @@ import { area } from '@turf/area';
 import { intersect } from '@turf/intersect';
 import { featureCollection } from '@turf/helpers';
 import { booleanPointInPolygon } from '@turf/boolean-point-in-polygon';
-import { agencyHeatWeight, reportingDensity, reportingDensityMaximum, reportingHeatValue, densityScaleMidpoint } from '../src/lib/map-density.ts';
+import { agencyHeatWeight, reportingCount, reportingDensity, reportingDensityMaximum, reportingHeatValue, densityScaleMidpoint } from '../src/lib/map-density.ts';
+import { comparisonFeatures, comparisonValue, comparisonCSV, percentChange, mergeBreakdowns } from '../src/lib/cjic-comparison.ts';
+import { buildReportingAreas } from './cjic-geography.mjs';
 
 const root = 'public/data/michigan-cjic';
 const manifest = JSON.parse(await readFile(`${root}/prepared/manifest.json`, 'utf8'));
 const chunks = [];
+const originalAreaCounts = new Map();
+const originalOffenseCounts = new Map();
+const originalDemographics = { race: {}, age: {}, sex: {} };
 const modulus = 2n ** 128n;
 function rowHash(values) { return BigInt(`0x${createHash('sha256').update(JSON.stringify(values)).digest('hex').slice(0, 32)}`); }
 const defaults = { sources: ['cjic-crime', 'cjic-victim'], period: 'all', category: '', races: [], search: '' };
@@ -45,6 +50,16 @@ test('every named field and every CSV row survives preparation, including duplic
       assert.deepEqual(Object.keys(record).filter(Boolean), definition.fields);
       originalHash = (originalHash + rowHash(definition.fields.map((field) => record[field]))) % modulus;
       originalCount++;
+      const place = `${record.COUNTY_DESCRIPTION}|${record.CITY_DESCRIPTION}`;
+      const year = record['Year of INCIDENT_DATE'];
+      const areaKey = `${source}|${year}|${place}`;
+      originalAreaCounts.set(areaKey, (originalAreaCounts.get(areaKey) || 0) + 1);
+      const offenseKey = `${source}|${year}|${record.MICR_OFFENSE}`;
+      originalOffenseCounts.set(offenseKey, (originalOffenseCounts.get(offenseKey) || 0) + 1);
+      if (source === 'cjic-victim') for (const [name, field] of [['race', 'RACE'], ['age', 'VICTIM_AGE_GROUP'], ['sex', 'SEX']]) {
+        const label = record[field] || 'Not reported';
+        originalDemographics[name][label] = (originalDemographics[name][label] || 0) + 1;
+      }
     }
     assert.equal(preparedCount, originalCount);
     assert.equal(preparedCount, definition.total);
@@ -133,7 +148,23 @@ test('every reporting boundary is clipped to its county; Northville uses city, n
     const county = counties.find((item) => item.properties.NAME === `${reportingArea.county} County`);
     const clipped = intersect(featureCollection([shape, county]));
     assert.ok(clipped, reportingArea.key);
-    assert.ok(Math.abs(area(shape) - area(clipped)) < 1, `${reportingArea.key}: boundary outside county`);
+    // Re-intersecting even the county with itself changes Turf's spherical
+    // area slightly through coordinate rounding. Bound that numerical error
+    // and check every vertex independently against the county boundary.
+    assert.ok(Math.abs(area(shape) - area(clipped)) < Math.max(1, area(shape) * 0.00005), `${reportingArea.key}: boundary outside county`);
+    const countyRings = county.geometry.type === 'MultiPolygon' ? county.geometry.coordinates.flat() : county.geometry.coordinates;
+    const reportingRings = reportingArea.geometry.type === 'MultiPolygon' ? reportingArea.geometry.coordinates.flat() : reportingArea.geometry.coordinates;
+    for (const ring of reportingRings) for (const point of ring) {
+      if (booleanPointInPolygon(point, county.geometry)) continue;
+      const nearEdge = countyRings.some((boundary) => boundary.slice(1).some((end, index) => {
+        const start = boundary[index];
+        const dx = end[0] - start[0], dy = end[1] - start[1];
+        const lengthSquared = dx * dx + dy * dy;
+        const fraction = lengthSquared ? Math.max(0, Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared)) : 0;
+        return Math.hypot(point[0] - start[0] - fraction * dx, point[1] - start[1] - fraction * dy) < 1e-8;
+      }));
+      assert.ok(nearEdge, `${reportingArea.key}: vertex outside its county`);
+    }
     assert.ok(reportingArea.areaKm2 > 0);
     assert.ok(Math.abs(reportingArea.areaKm2 - area(shape) / 1_000_000) < 0.000001);
   }
@@ -160,4 +191,106 @@ test('CJIC density reflects area size, has a truthful legend, and excludes count
   assert.equal(reportingDensityMaximum([]), 0);
   assert.equal(reportingHeatValue({ ...small, crime: 0 }, 0), 0);
   assert.equal(agencyHeatWeight(1000), 0.075);
+});
+
+test('every city/county overlay total agrees independently with original CSV rows for each source and year', () => {
+  const geography = new Map(manifest.areas.map((area) => [area.key, area]));
+  for (const period of ['all', '2021', '2022', '2023', '2024', '2025', '2026']) {
+    for (const source of ['cjic-crime', 'cjic-victim']) {
+      const expected = new Map();
+      for (const [key, count] of originalAreaCounts) {
+        const [rowSource, year, county, city] = key.split('|');
+        if (rowSource !== source || period !== 'all' && period !== year) continue;
+        const location = geography.get(`${county}|${city}`);
+        assert.ok(location, key);
+        const mapKey = location.precision === 'county' ? `${county}|__county__` : location.key;
+        expected.set(mapKey, (expected.get(mapKey) || 0) + count);
+      }
+      const result = queryCJIC(manifest, chunks, { ...defaults, sources: [source], period, analysisOnly: true });
+      assert.equal(result.total, [...expected.values()].reduce((sum, count) => sum + count, 0));
+      assert.equal(result.incidents.length, 0);
+      for (const overlay of result.areas) {
+        assert.equal(overlay[source === 'cjic-crime' ? 'crime' : 'victims'], expected.get(overlay.key) || 0, `${source} ${period} ${overlay.key}`);
+        expected.delete(overlay.key);
+      }
+      assert.equal(expected.size, 0, 'every original reporting place appears on the map or in county-only totals');
+    }
+  }
+});
+
+test('all official municipal matches retain the correct city/village/township type and county', async () => {
+  const geography = JSON.parse(await readFile(`${root}/reporting-geography.json`, 'utf8'));
+  const counties = JSON.parse(await readFile('src/lib/county-boundaries.json', 'utf8'));
+  const rebuilt = buildReportingAreas(new Set(manifest.areas.map((area) => area.key)), geography, counties);
+  for (let index = 0; index < rebuilt.length; index++) {
+    const actual = manifest.areas.find((area) => area.key === rebuilt[index].key);
+    assert.equal(actual.geographyLabel, rebuilt[index].geographyLabel);
+    assert.equal(actual.precision, rebuilt[index].precision);
+    assert.deepEqual(actual.geometry, rebuilt[index].geometry);
+    if (actual.precision === 'reporting-area' && actual.city.endsWith(' Township')) assert.ok(actual.geographyLabel.endsWith(' Township'));
+  }
+  assert.equal(manifest.areas.find((area) => area.key === 'Oakland|Wixon').geographyLabel, 'City of Wixom');
+  assert.equal(manifest.areas.find((area) => area.key === 'Macomb|Mount Clemens').geographyLabel, 'City of Mt Clemens');
+  assert.equal(manifest.areas.find((area) => area.key === 'Macomb|Saint Clair Shores').geographyLabel, 'City of St Clair Shores');
+});
+
+test('zero-match villages stay separate from enclosing township counts', () => {
+  const result = queryCJIC(manifest, chunks, { ...defaults, period: '2025', search: 'Holly Township' });
+  const village = result.areas.find((area) => area.key === 'Oakland|Holly');
+  const township = result.areas.find((area) => area.key === 'Oakland|Holly Township');
+  assert.ok(township.crime > 0);
+  assert.equal(village.crime, 0);
+  assert.equal(village.victims, 0);
+  assert.equal(village.geographyLabel, 'Village of Holly');
+  assert.equal(reportingCount({ ...village, crime: 10, victims: 30 }, 'crime'), 10);
+  assert.equal(reportingCount({ ...village, crime: 10, victims: 30 }, 'victims'), 30);
+  assert.equal(reportingDensity({ ...village, crime: 10, victims: 30 }, 'victims'), 30 / village.areaKm2);
+});
+
+test('comparison breakdowns match original offense/year and demographic totals, without pagination', () => {
+  const result = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true });
+  const expectedOffenses = new Map();
+  const expectedYears = new Map();
+  for (const [key, count] of originalOffenseCounts) {
+    const [source, year, offense] = key.split('|');
+    const measure = source === 'cjic-crime' ? 'crime' : 'victims';
+    for (const [map, label] of [[expectedOffenses, offense], [expectedYears, year]]) {
+      if (!map.has(label)) map.set(label, { key: label, crime: 0, victims: 0 });
+      map.get(label)[measure] += count;
+    }
+  }
+  assert.deepEqual(result.analysis.byYear, [...expectedYears.values()].sort((a, b) => Number(a.key) - Number(b.key)));
+  for (const entry of result.analysis.byOffense) assert.deepEqual(entry, expectedOffenses.get(entry.key));
+  assert.equal(result.analysis.byOffense.length, expectedOffenses.size);
+  assert.deepEqual(result.analysis.victimRaces, originalDemographics.race);
+  assert.deepEqual(result.analysis.victimAges, originalDemographics.age);
+  assert.deepEqual(result.analysis.victimSex, originalDemographics.sex);
+  const city = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, period: '2025', scope: 'Oakland|Troy' });
+  assert.equal(city.areas.length, 1);
+  for (const source of defaults.sources) assert.equal(city.sourceCounts[source], originalAreaCounts.get(`${source}|2025|Oakland|Troy`));
+  const county = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, scope: 'county:Macomb' });
+  assert.ok(county.areas.every((area) => area.county === 'Macomb'));
+  assert.ok(county.areas.some((area) => area.precision === 'county'));
+  const unresolved = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, scope: 'Macomb|__county__' });
+  assert.equal(unresolved.areas.length, 1);
+  assert.equal(unresolved.total, county.areas.find((area) => area.precision === 'county').crime + county.areas.find((area) => area.precision === 'county').victims);
+});
+
+test('comparison map keeps missing cohorts distinct from zero counts, handles density and zero baselines', () => {
+  const a = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, period: '2024', scope: 'Oakland|Troy' });
+  const b = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, period: '2025', scope: 'Oakland|Troy' });
+  const base = { a, b, aLabel: 'A', bLabel: 'B', metric: 'crime', view: 'change', density: false };
+  const [feature] = comparisonFeatures(base);
+  assert.equal(feature.value, b.areas[0].crime - a.areas[0].crime);
+  assert.equal(comparisonFeatures({ ...base, density: true })[0].value, b.areas[0].crime / b.areas[0].areaKm2 - a.areas[0].crime / a.areas[0].areaKm2);
+  const different = queryCJIC(manifest, chunks, { ...defaults, analysisOnly: true, period: '2025', scope: 'Macomb|Warren' });
+  assert.ok(comparisonFeatures({ ...base, b: different }).every((entry) => entry.value === null));
+  assert.equal(comparisonValue(null, 'crime', false), null);
+  assert.equal(comparisonValue({ ...a.areas[0], precision: 'county' }, 'crime', true), null);
+  assert.equal(percentChange(0, 10), null);
+  assert.equal(percentChange(0, 0), 0);
+  assert.equal(percentChange(100, 125), 25);
+  assert.equal(percentChange(100, 0), -100);
+  assert.deepEqual(mergeBreakdowns([{ key: 'offense', crime: 2, victims: 3 }], []), [{ key: 'offense', aCrime: 2, aVictims: 3, bCrime: 0, bVictims: 0 }]);
+  assert.equal(comparisonCSV([['City, name', '=formula', '"quote"', null, -5]]), '"City, name","\'=formula","""quote""",,-5');
 });
