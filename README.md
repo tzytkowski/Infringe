@@ -1,6 +1,6 @@
 # Infringe · Metro Detroit Crime Atlas
 
-A root-level Next.js and MapLibre app inspired by the map interface in `OSIRIS/osiris`. Select any combination of Detroit Police, regional CLEMIS, Michigan CJIC crime, and Michigan CJIC victim data. Filter by period, offense, and reported victim race; inspect every original source field in record details.
+A root-level Next.js and MapLibre OSINT dashboard app. Select any combination of Detroit Police, regional CLEMIS, Michigan CJIC crime, and Michigan CJIC victim data. Filter by period, offense, and reported victim race; inspect every original source field in record details.
 
 ## Run locally
 
