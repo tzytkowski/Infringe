@@ -2,8 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ArrowDown, ArrowUpRight, ChevronDown, Crosshair, Database, Download, ExternalLink, Filter, Info, Radio, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
-import { CJIC_SOURCE, CLEMIS_SOURCE, DATA_SOURCES, crimeGroup, isCJIC, recordDate, type CJICManifest, type CJICMetric, type CJICResponse, type ComparisonMap, type CrimeSource, type IncidentResponse, type RegionalFocus, type RemoteSource } from '@/lib/crime';
+import { Activity, ArrowDown, ArrowUpRight, ChevronDown, Crosshair, Database, Download, ExternalLink, Filter, Info, Maximize2, Radio, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
+import { CJIC_SOURCE, CLEMIS_SOURCE, DATA_SOURCES, crimeGroup, isCJIC, isHomicideOffense, recordDate, type CJICManifest, type CJICMetric, type CJICResponse, type ComparisonMap, type CrimeSource, type IncidentResponse, type RegionalFocus, type RemoteSource } from '@/lib/crime';
+import { recordLocation, recordMatchesValue, recordValues } from '@/lib/record-filter';
 import { fetchCategories, fetchIncidents } from '@/lib/arcgis-client';
 import { fetchCJIC, fetchCJICManifest } from '@/lib/cjic-client';
 import RecordList from '@/components/RecordList';
@@ -15,6 +16,35 @@ const CrimeMap = dynamic(() => import('@/components/CrimeMap'), { ssr: false });
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: currentYear - 2015 }, (_, index) => currentYear - index);
 type RemoteState = { data: IncidentResponse | null; loading: boolean; error: string | null };
+type RecordSort = 'newest' | 'oldest' | 'offense-asc' | 'offense-desc' | 'location-asc' | 'location-desc' | 'source-asc' | 'source-desc';
+
+const RECORD_FIELD_LABELS: Record<string, string> = {
+  ESRI_OID: 'Record ID',
+  OBJECTID: 'Record ID',
+  offense_category: 'Offense category',
+  offense_description: 'Offense description',
+  incident_occurred_at: 'Incident date and time',
+  neighborhood: 'Neighborhood',
+  nearest_intersection: 'Nearest intersection',
+  police_precinct: 'Police precinct',
+  case_status: 'Case status',
+  longitude: 'Longitude',
+  latitude: 'Latitude',
+  AGENCY: 'Reporting agency',
+  CITY: 'City',
+  CHARGEDESCRIPTION: 'Charge description',
+  LOCATION: 'Reported location',
+  FROM_DATE: 'Incident date and time',
+  CRIME_DESC: 'Offense description',
+};
+
+function recordFieldLabel(field: string) {
+  return RECORD_FIELD_LABELS[field] || field
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 function SelectAll({ checked, mixed, onChange, label }: { checked: boolean; mixed: boolean; onChange: () => void; label: string }) {
   const input = useRef<HTMLInputElement>(null);
@@ -42,14 +72,20 @@ export default function Home() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [resetSignal, setResetSignal] = useState(0);
+  const [locateSignal, setLocateSignal] = useState(0);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [comparisonMode, setComparisonMode] = useState(false);
   const [comparison, setComparison] = useState<ComparisonMap | null>(null);
   const [comparisonScope, setComparisonScope] = useState('all');
   const [mapMetric, setMapMetric] = useState<CJICMetric>('crime');
+  const [recordSort, setRecordSort] = useState<RecordSort>('newest');
+  const [recordFilterField, setRecordFilterField] = useState('any');
+  const [recordFilter, setRecordFilter] = useState('');
+  const mapPanelRef = useRef<HTMLElement | null>(null);
   const sourceKey = sources.join('|');
   const raceKey = races.join('|');
+  const isDetroitOnly = sources.length === 1 && sources[0] === 'detroit';
   const hasCJIC = sources.some(isCJIC);
   const hasAgency = sources.some((source) => !isCJIC(source));
   const viewKey = `${sourceKey}|${period}|${category}|${raceKey}|${debouncedSearch}|${refresh}`;
@@ -122,6 +158,18 @@ export default function Home() {
   }, [viewKey]);
   useEffect(() => () => moreController.current?.abort(), []);
 
+  useEffect(() => {
+    if (!mobileFilters) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMobileFilters(false); };
+    const mobileViewport = window.matchMedia('(max-width: 840px)');
+    const closeOnWideViewport = () => { if (!mobileViewport.matches) setMobileFilters(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    mobileViewport.addEventListener('change', closeOnWideViewport);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener('keydown', closeOnEscape); mobileViewport.removeEventListener('change', closeOnWideViewport); };
+  }, [mobileFilters]);
+
   const categories = useMemo(() => [...new Set([
     ...remoteCategories, ...sources.filter(isCJIC).flatMap((source) => manifest?.sources[source].categories || []),
   ])].sort(), [remoteCategories, sourceKey, manifest]);
@@ -130,14 +178,58 @@ export default function Home() {
     const term = debouncedSearch.trim().toLowerCase();
     return term ? remoteIncidents.filter((item) => Object.values(item.fields).some((value) => String(value ?? '').toLowerCase().includes(term))) : remoteIncidents;
   }, [remoteIncidents, debouncedSearch]);
-  const incidents = useMemo(() => [...visibleRemote, ...(local?.incidents || [])].sort((a, b) =>
-    (b.occurredAt ?? Date.UTC(b.year || 0, 0, 1)) - (a.occurredAt ?? Date.UTC(a.year || 0, 0, 1))), [visibleRemote, local]);
+  const sortedIncidents = useMemo(() => {
+    const recordTime = (occurredAt: number | null, year: number | undefined) => occurredAt ?? Date.UTC(year || 0, 0, 1);
+    const text = (value: string) => value.toLocaleLowerCase();
+    return [...visibleRemote, ...(local?.incidents || [])].sort((a, b) => {
+      const aLocation = recordLocation(a);
+      const bLocation = recordLocation(b);
+      const aSource = DATA_SOURCES.find((source) => source.id === a.source)?.label || a.source;
+      const bSource = DATA_SOURCES.find((source) => source.id === b.source)?.label || b.source;
+      let result: number;
+      switch (recordSort) {
+        case 'oldest': result = recordTime(a.occurredAt, a.year) - recordTime(b.occurredAt, b.year); break;
+        case 'offense-asc': result = text(a.category).localeCompare(text(b.category)); break;
+        case 'offense-desc': result = text(b.category).localeCompare(text(a.category)); break;
+        case 'location-asc': result = text(aLocation).localeCompare(text(bLocation)); break;
+        case 'location-desc': result = text(bLocation).localeCompare(text(aLocation)); break;
+        case 'source-asc': result = text(aSource).localeCompare(text(bSource)); break;
+        case 'source-desc': result = text(bSource).localeCompare(text(aSource)); break;
+        default: result = recordTime(b.occurredAt, b.year) - recordTime(a.occurredAt, a.year);
+      }
+      return result || a.id.localeCompare(b.id);
+    });
+  }, [visibleRemote, local, recordSort]);
+  const recordFilterFields = useMemo(() => [...new Set(sortedIncidents.flatMap((record) => Object.keys(record.fields)))].sort((a, b) => recordFieldLabel(a).localeCompare(recordFieldLabel(b))), [sortedIncidents]);
+  useEffect(() => {
+    if (recordFilterField.startsWith('field:') && !recordFilterFields.includes(recordFilterField.slice(6))) setRecordFilterField('any');
+  }, [recordFilterField, recordFilterFields]);
+  const recordFilterValues = useMemo(() => {
+    const values = new Set<string>();
+    for (const record of sortedIncidents) {
+      const candidates = recordValues(record, recordFilterField);
+      candidates.forEach((value) => {
+        const text = String(value ?? '').trim();
+        if (text) values.add(text);
+      });
+    }
+    const options = [...values].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (recordFilterField === 'offense' && sortedIncidents.some((record) => isHomicideOffense(record.category) || isHomicideOffense(record.description))) options.unshift('group:homicide');
+    return options;
+  }, [sortedIncidents, recordFilterField]);
+  useEffect(() => {
+    if (recordFilter && !recordFilterValues.some((value) => value === recordFilter)) setRecordFilter('');
+  }, [recordFilter, recordFilterValues]);
+  const incidents = useMemo(() => {
+    return recordFilter ? sortedIncidents.filter((record) => recordMatchesValue(record, recordFilterField, recordFilter)) : sortedIncidents;
+  }, [sortedIncidents, recordFilterField, recordFilter]);
   const loading = localLoading || Object.values(remote).some((state) => state?.loading);
   const remoteHasMore = Object.values(remote).some((state) => state?.data && (state.data.total === null ? state.data.incidents.length > 0 : state.data.nextOffset < state.data.total));
   const localHasMore = local !== null && local.nextOffset < local.total;
   const total = (local?.total || 0) + (debouncedSearch ? visibleRemote.length : Object.values(remote).reduce((sum, state) => sum + (state?.data?.total || 0), 0));
+  const loadedCount = sortedIncidents.length;
   const errors = [...Object.entries(remote).flatMap(([source, state]) => state?.error ? [`${DATA_SOURCES.find((entry) => entry.id === source)?.label}: ${state.error}`] : []), ...(localError ? [`CJIC: ${localError}`] : [])];
-  const selected = incidents.find((item) => item.id === selectedId) ?? null;
+  const selected = sortedIncidents.find((item) => item.id === selectedId) ?? null;
   const selectedArea = local?.areas.find((area) => area.key === selectedAreaKey) ?? null;
   const effectiveMetric = mapMetric === 'crime' && !sources.includes('cjic-crime') ? 'victims' : mapMetric === 'victims' && !sources.includes('cjic-victim') ? 'crime' : mapMetric;
   const maximumDensity = reportingDensityMaximum(local?.areas || [], effectiveMetric);
@@ -187,8 +279,11 @@ export default function Home() {
   function changeSources(next: CrimeSource[]) {
     setSources(next);
     setCategory('');
+    if (next.length === 1 && next[0] === 'detroit') setRegionalFocus('both');
     if (!next.some(isCJIC)) setRaces([]);
-    if (next.some(isCJIC) && ['24h', '7d', '30d'].includes(period)) {
+    if (!next.some(isCJIC) && next.length > 0) {
+      setPeriod('24h');
+    } else if (next.some(isCJIC) && ['24h', '7d', '30d'].includes(period)) {
       const availableYears = next.filter(isCJIC).flatMap((source) => manifest?.sources[source].chunks.map((chunk) => chunk.year) || []);
       setPeriod(availableYears.length ? String(Math.max(...availableYears)) : 'all');
     }
@@ -196,7 +291,13 @@ export default function Home() {
   function toggleSource(source: CrimeSource) {
     changeSources(DATA_SOURCES.filter((entry) => sources.includes(entry.id) !== (entry.id === source)).map((entry) => entry.id));
   }
-  function selectRecord(id: string) { setSelectedAreaKey(null); setSelectedId(id); }
+  function selectRecord(id: string) {
+    setSelectedAreaKey(null);
+    setSelectedId(id);
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      requestAnimationFrame(() => mapPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }
   function selectArea(key: string) { setSelectedId(null); setSelectedAreaKey(key); }
   function openComparison() {
     setComparisonScope(selectedAreaKey || 'all'); setSelectedId(null); setSelectedAreaKey(null); setComparison(null); setComparisonMode(true); setLegendOpen(true); setMobileFilters(false);
@@ -211,26 +312,27 @@ export default function Home() {
 
   return <div className={`shell ${comparisonMode ? 'comparing' : ''}`}>
     <header className="topbar">
-      <div className="brand"><span className="brand-mark">◆</span><div><strong>INFRINGE</strong><small>METRO DETROIT CRIME ATLAS</small></div></div>
+      <a className="brand" href="/" aria-label="Infringe home"><span className="brand-mark" aria-hidden="true">◆</span><div><strong>INFRINGE</strong><small>METRO DETROIT CRIME ATLAS</small></div></a>
       <div className="topbar-center"><span className="pulse" /> PUBLIC RECORDS <span className="topbar-divider">/</span> METRO DETROIT, MICHIGAN</div>
-      <div className="topbar-actions"><span className="clock-label">{fetchedAt ? `FETCHED ${new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'AWAITING DATA'}</span><button className="icon-button mobile-filter-toggle" title={mobileFilters ? 'Close filters' : 'Open filters'} aria-label={mobileFilters ? 'Close filters' : 'Open filters'} aria-expanded={mobileFilters} aria-controls="data-filters" onClick={() => setMobileFilters((value) => !value)}>{mobileFilters ? <X size={16} /> : <Filter size={16} />}</button><button className="icon-button" title="Refresh data" aria-label="Refresh data" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} /></button></div>
+      <div className="topbar-actions"><span className="clock-label">{fetchedAt ? `FETCHED ${new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'AWAITING DATA'}</span><button className="icon-button mobile-filter-toggle" title={mobileFilters ? 'Close filters' : 'Open filters'} aria-label={mobileFilters ? 'Close filters' : 'Open filters'} aria-expanded={mobileFilters} aria-controls="data-filters" onClick={() => setMobileFilters((value) => !value)}><Filter size={16} /><span className="mobile-filter-text">{comparisonMode ? 'Map settings' : 'Filters'}</span></button><button className="icon-button" title="Refresh data" aria-label="Refresh data" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={16} /></button></div>
     </header>
 
-    <aside className={`sidebar ${mobileFilters ? 'filters-open' : ''}`} id="data-filters">
-      <div className="side-heading"><span>EXPLORER</span><Filter size={15} /></div>
+    {mobileFilters && <button className="mobile-filter-backdrop" type="button" aria-label="Close filters" onClick={() => setMobileFilters(false)} />}
+    <aside className={`sidebar ${mobileFilters ? 'filters-open' : ''}`} id="data-filters" role={mobileFilters ? 'dialog' : undefined} aria-modal={mobileFilters || undefined} aria-label={mobileFilters ? (comparisonMode ? 'Map settings' : 'Filters and coverage') : undefined}>
+      <div className="side-heading"><span>{comparisonMode ? 'MAP SETTINGS' : 'FILTERS & COVERAGE'}</span><Filter className="side-heading-icon" size={15} /><button className="mobile-filter-close" type="button" aria-label="Close filters" onClick={() => setMobileFilters(false)}><X size={18} /></button></div>
       {comparisonMode ? <section className="filter-section comparison-sidebar"><div className="section-label">CJIC COMPARISON</div><p>Choose two cohorts in the Compare panel. Each cohort has its own place, year, offense and victim-race filters.</p><p>Counts include every matching crime and victim row in the downloaded snapshot. Agency records are separate from this comparison.</p><label className="field-label focus-label" htmlFor="compare-focus">Map focus</label><select id="compare-focus" value={regionalFocus} onChange={(event) => setRegionalFocus(event.target.value as RegionalFocus)}><option value="both">Oakland + Macomb</option><option value="oakland">Oakland County</option><option value="macomb">Macomb County</option></select><p className="field-note">Snapshot: 2021 through June 30, 2026. Map colors show reporting areas; locations within them are unknown.</p><a className="small-link" href={CJIC_SOURCE} target="_blank" rel="noreferrer">Michigan CJIC source <ArrowUpRight size={13} /></a></section> : <>
       <section className="filter-section"><div className="section-label"><span>01</span> DATA SOURCES</div>
         <fieldset className="checkbox-group"><legend className="field-label">Coverage</legend><SelectAll label="All data sources" checked={sources.length === DATA_SOURCES.length} mixed={sources.length > 0 && sources.length < DATA_SOURCES.length} onChange={() => changeSources(sources.length === DATA_SOURCES.length ? [] : DATA_SOURCES.map((entry) => entry.id))} />
           {DATA_SOURCES.map((entry) => <label className="source-option" key={entry.id}><input type="checkbox" checked={sources.includes(entry.id)} onChange={() => toggleSource(entry.id)} /><span className="source-option-body"><strong><i style={{ background: entry.color }} />{entry.label}</strong><small>{entry.coverage}</small>{sources.includes(entry.id) && <small className="source-status">{sourceStatus(entry.id)}</small>}</span></label>)}
         </fieldset>
-        <label className="field-label focus-label" htmlFor="regional-focus">Map focus</label><select id="regional-focus" value={regionalFocus} onChange={(event) => setRegionalFocus(event.target.value as RegionalFocus)}><option value="both">Full selected coverage</option><option value="oakland">Oakland County</option><option value="macomb">Macomb County</option></select>
+        <label className="field-label focus-label" htmlFor="regional-focus">Map focus</label><select id="regional-focus" value={regionalFocus} disabled={isDetroitOnly} onChange={(event) => setRegionalFocus(event.target.value as RegionalFocus)}><option value="both">Full selected coverage</option><option value="oakland">Oakland County</option><option value="macomb">Macomb County</option></select>{isDetroitOnly && <p className="field-note">Detroit Police coverage is limited to Detroit.</p>}
       </section>
 
       <section className="filter-section"><div className="section-label"><span>02</span> TIME PERIOD</div><label className="field-label" htmlFor="period">Reporting period</label><select id="period" value={period} onChange={(event) => setPeriod(event.target.value)}>
         <option value="all">All available years</option><option value="24h" disabled={hasCJIC}>Past 24 hours</option><option value="7d" disabled={hasCJIC}>Past 7 days</option><option value="30d" disabled={hasCJIC}>Past 30 days</option><optgroup label="By year">{years.map((year) => <option value={year} key={year}>{year}</option>)}</optgroup>
       </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{!hasCJIC && <p className="field-note">CLEMIS regional history starts in 2026; Detroit history starts in December 2016.</p>}</section>
 
-      <section className="filter-section"><div className="section-label"><span>03</span> OFFENSE</div><label className="field-label" htmlFor="category">Crime category</label><select id="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option>{categories.map((name) => <option value={name} key={name}>{name}</option>)}</select></section>
+      <section className="filter-section"><div className="section-label"><span>03</span> OFFENSE</div><label className="field-label" htmlFor="category">Crime category</label><select id="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option><option value="group:homicide">Homicide / Murder (related offenses)</option>{categories.map((name) => <option value={name} key={name}>{name}</option>)}</select><p className="field-note">The grouped option includes source labels containing homicide, murder, or manslaughter. Record details show the original offense.</p></section>
 
       <section className="filter-section"><div className="section-label"><span>04</span> VICTIM RACE</div><fieldset className="checkbox-group" disabled={!hasCJIC || !manifest}><legend className="field-label">Reported victim race</legend>
         <SelectAll label="All races" checked={races.length === 0} mixed={races.some((race) => race !== '__none__')} onChange={() => setRaces(races.length === 0 ? ['__none__'] : [])} />
@@ -247,7 +349,8 @@ export default function Home() {
 
     <main className="main">
       <div className="stats-row">{comparisonMode ? (['a', 'b'] as const).flatMap((side) => (['crime', 'victims'] as const).map((metric) => <div className="stat" key={`${side}-${metric}`}><small>{side.toUpperCase()} · {metric === 'crime' ? 'CRIME ROWS' : 'VICTIM ROWS'}</small><strong>{comparison ? (comparison[side].sourceCounts[metric === 'crime' ? 'cjic-crime' : 'cjic-victim'] || 0).toLocaleString() : '...'}</strong><span>{comparison?.[side === 'a' ? 'aLabel' : 'bLabel'] || 'Preparing comparison'}</span></div>)) : <><div className="stat"><small>MATCHING ROWS</small><strong>{loading ? '...' : total.toLocaleString()}</strong><span>{errors.length ? 'partial source results' : 'selected sources / current filters'}</span></div><div className="stat"><small>AGENCY MAP POINTS</small><strong>{visibleRemote.length.toLocaleString()}</strong><span>loaded CLEMIS / Detroit records</span></div><div className="stat"><small>CJIC MAP ROWS</small><strong>{localLoading ? '...' : (local?.total || 0).toLocaleString()}</strong><span>{local?.areas.filter((area) => area.crime + area.victims > 0).length || 0} matching reporting areas</span></div><div className="stat source-stat"><small>OFFENSE GROUPS</small><strong>{Object.keys(groupCounts).length}</strong><span>{sources.length} selected data sources</span></div></>}</div>
-      <div className="workspace"><section className="map-panel"><CrimeMap incidents={comparisonMode ? [] : incidents} selectedId={selectedId} selectedAreaKey={selectedAreaKey} onSelect={selectRecord} resetSignal={resetSignal} sources={comparisonMode ? ['cjic-crime', 'cjic-victim'] : sources} areas={mapAreas} onSelectArea={selectArea} regionalFocus={regionalFocus} metric={effectiveMetric} comparison={comparisonMode ? comparison : null} /><div className="map-topline"><span><Activity size={13} />{comparisonMode ? 'CJIC COMPARISON' : regionalFocus === 'oakland' ? 'OAKLAND COUNTY' : regionalFocus === 'macomb' ? 'MACOMB COUNTY' : 'METRO DETROIT'}</span><button className="reset-view" title="Reset map view" aria-label="Reset map view" onClick={() => setResetSignal((value) => value + 1)}><Crosshair size={14} /></button></div>
+      <div className="workspace"><section className={`map-panel${selected && !comparisonMode ? ' has-record-preview' : ''}`} ref={mapPanelRef}><CrimeMap incidents={comparisonMode ? [] : sortedIncidents} selectedId={selectedId} selectedAreaKey={selectedAreaKey} onSelect={selectRecord} resetSignal={resetSignal} locateSignal={locateSignal} sources={comparisonMode ? ['cjic-crime', 'cjic-victim'] : sources} areas={mapAreas} onSelectArea={selectArea} regionalFocus={regionalFocus} metric={effectiveMetric} comparison={comparisonMode ? comparison : null} /><div className="map-topline"><span><Activity size={13} />{comparisonMode ? 'CJIC COMPARISON' : regionalFocus === 'oakland' ? 'OAKLAND COUNTY' : regionalFocus === 'macomb' ? 'MACOMB COUNTY' : 'METRO DETROIT'}</span><div className="map-view-actions"><button className="reset-view" title="Reset map view" aria-label="Reset map view" onClick={() => setResetSignal((value) => value + 1)}><Maximize2 size={14} /></button><button className="reset-view" title="Center map on my location" aria-label="Center map on my location" onClick={() => setLocateSignal((value) => value + 1)}><Crosshair size={14} /></button></div></div>
+        {selected && !comparisonMode && <article className="map-record-preview" aria-label="Selected public record"><div className="map-record-preview-head"><span>{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel || 'PUBLIC RECORD'}</span><button type="button" aria-label="Close selected record" onClick={() => setSelectedId(null)}><X size={15} /></button></div><strong>{selected.description}</strong><p>{recordLocation(selected) || 'Location unavailable'} · {recordDate(selected)}</p><details><summary>Record details</summary><dl>{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{recordFieldLabel(field)}</dt><dd>{value === '' || value === null ? 'Not reported' : String(value)}</dd></div>)}</dl></details></article>}
         {hasCJIC && !comparisonMode && <label className="map-metric-control">CJIC map<select aria-label="CJIC map measure" value={effectiveMetric} onChange={(event) => setMapMetric(event.target.value as CJICMetric)}>{sources.includes('cjic-crime') && <option value="crime">Crime rows / sq km</option>}{sources.includes('cjic-victim') && <option value="victims">Victim rows / sq km</option>}{sources.includes('cjic-crime') && sources.includes('cjic-victim') && <option value="combined">All selected rows / sq km</option>}</select></label>}
         {comparisonMode && comparison && <div className="comparison-map-summary"><span><i className="cohort-dot a" />A · {comparison.aLabel}</span><span><i className="cohort-dot b" />B · {comparison.bLabel}</span></div>}
         <div className="heat-legend">
@@ -272,11 +375,11 @@ export default function Home() {
         {!comparisonMode && errors.length > 0 && <div className="map-error" role="alert"><ShieldAlert size={20} /><div><strong>Some source data is unavailable</strong>{errors.map((error) => <span key={error}>{error}</span>)}</div><button className="icon-button" title="Retry unavailable sources" aria-label="Retry unavailable sources" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={14} /></button></div>}
       </section>
 
-      <section className="records-panel"><div className="workspace-tabs" role="tablist" aria-label="Workspace view"><button role="tab" id="records-tab" aria-selected={!comparisonMode} aria-controls="records-view" onClick={() => { setComparisonMode(false); setComparison(null); setSelectedAreaKey(null); }}>Records</button><button role="tab" id="comparison-tab" aria-selected={comparisonMode} aria-controls="comparison-view" onClick={() => { if (!comparisonMode) openComparison(); }}>Compare &amp; analyze</button></div>{comparisonMode ? <div className="comparison-view" id="comparison-view" role="tabpanel" aria-labelledby="comparison-tab">{manifest ? <CJICComparison manifest={manifest} initialScope={comparisonScope} onMapChange={setComparison} onSelectArea={selectArea} selectedAreaKey={selectedAreaKey} /> : <p className="list-message" role="status">{manifestError || 'Loading CJIC metadata…'}</p>}</div> : <div className="records-view" id="records-view" role="tabpanel" aria-labelledby="records-tab"><div className="records-header"><div><small>PUBLIC RECORDS</small><h2>Crime &amp; victims</h2></div><span className="record-count">{incidents.length.toLocaleString()}</span></div><div className="search-box"><Search size={15} /><input aria-label="Search records" placeholder="Search records..." value={search} onChange={(event) => setSearch(event.target.value)} /></div><div className="record-scope">{search ? 'CJIC: all rows / agency data: loaded points' : 'Newest period first / source shown on each row'}</div>
+      <section className="records-panel"><div className="workspace-tabs" role="tablist" aria-label="Workspace view"><button role="tab" id="records-tab" aria-selected={!comparisonMode} aria-controls="records-view" onClick={() => { setComparisonMode(false); setComparison(null); setSelectedAreaKey(null); }}>Records</button><button role="tab" id="comparison-tab" aria-selected={comparisonMode} aria-controls="comparison-view" onClick={() => { if (!comparisonMode) openComparison(); }}>Compare &amp; analyze</button></div>{comparisonMode ? <div className="comparison-view" id="comparison-view" role="tabpanel" aria-labelledby="comparison-tab">{manifest ? <CJICComparison manifest={manifest} initialScope={comparisonScope} onMapChange={setComparison} onSelectArea={selectArea} selectedAreaKey={selectedAreaKey} /> : <p className="list-message" role="status">{manifestError || 'Loading CJIC metadata…'}</p>}</div> : <div className="records-view" id="records-view" role="tabpanel" aria-labelledby="records-tab"><div className="records-header"><div><small>PUBLIC RECORDS</small><h2>Crime &amp; victims</h2></div><div className="records-actions"><span className="record-count" aria-label={`${incidents.length} visible loaded records`}>{incidents.length.toLocaleString()} loaded</span><select aria-label="Sort public records" value={recordSort} onChange={(event) => setRecordSort(event.target.value as RecordSort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="offense-asc">Offense: A–Z</option><option value="offense-desc">Offense: Z–A</option><option value="location-asc">Location: A–Z</option><option value="location-desc">Location: Z–A</option><option value="source-asc">Source: A–Z</option><option value="source-desc">Source: Z–A</option></select></div></div><div className="search-box"><Search size={15} /><input aria-label="Search records" placeholder="Search records..." value={search} onChange={(event) => setSearch(event.target.value)} /></div><div className="record-filter"><select aria-label="Choose a public-record field to filter" value={recordFilterField} onChange={(event) => { setRecordFilterField(event.target.value); setRecordFilter(''); }}><option value="any">Any record detail</option><option value="offense">Offense</option><option value="location">Location</option><option value="source">Source</option>{recordFilterFields.length > 0 && <optgroup label="Source fields">{recordFilterFields.map((field) => <option value={`field:${field}`} key={field}>{recordFieldLabel(field)}</option>)}</optgroup>}</select><select aria-label="Choose a public-record value to filter" value={recordFilter} onChange={(event) => setRecordFilter(event.target.value)} disabled={recordFilterValues.length === 0}><option value="">All values</option>{recordFilterValues.map((value) => <option value={value} key={value}>{value === 'group:homicide' ? 'Homicide / Murder (related offenses)' : value}</option>)}</select></div><div className="record-scope">Showing {incidents.length.toLocaleString()} of {loadedCount.toLocaleString()} loaded records{recordFilter ? ' after dropdown filter' : ''}. {total.toLocaleString()} source rows match the main filters. Sorting and dropdown values use loaded records.{search && ' Agency search uses loaded records; CJIC search covers all matching rows.'}</div>
         {selectedArea && <div className="selected-card"><div className="selected-eyebrow">CJIC REPORTING AREA<button className="icon-button" aria-label="Close area details" title="Close area details" onClick={() => setSelectedAreaKey(null)}><X size={13} /></button></div><strong>{selectedArea.city}, {selectedArea.county}</strong><p>{sources.includes('cjic-crime') ? `${selectedArea.crime.toLocaleString()} crime rows` : 'Crime source not selected'} / {sources.includes('cjic-victim') ? `${selectedArea.victims.toLocaleString()} victim rows` : 'Victim source not selected'}</p><p>{selectedArea.geographyLabel}</p><p>{selectedArea.precision === 'county' ? `No verified municipal boundary. Original reporting labels: ${selectedArea.reportingLabels.join(', ')}. These rows do not contribute to municipal heat.` : `${densityLabel(reportingDensity(selectedArea, effectiveMetric)!)} ${effectiveMetric === 'combined' ? 'selected' : effectiveMetric === 'crime' ? 'crime' : 'victim'} rows per sq km / ${densityLabel(selectedArea.areaKm2)} sq km. Locations within the boundary are unknown.`}</p><dl className="record-fields">{Object.entries(selectedArea.races).map(([race, count]) => <div key={race}><dt>{race}</dt><dd>{count.toLocaleString()}</dd></div>)}</dl><p>{sources.includes('cjic-victim') ? 'Race counts represent matching victim rows.' : 'Race counts represent crime rows with linked victims; a row can have multiple victim races.'}</p><button className="compare-area-button" onClick={openComparison}>Compare this reporting area</button></div>}
-        {selected && <div className="selected-card"><div className="selected-eyebrow">{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel} RECORD<button className="icon-button" aria-label="Close record details" title="Close record details" onClick={() => setSelectedId(null)}><X size={13} /></button></div><strong>{selected.description}</strong><p>{selected.neighborhood || selected.intersection || 'Location unavailable'}{selected.county ? `, ${selected.county}` : ''} / {recordDate(selected)}</p>{isCJIC(selected.source) && <p>{selected.locationPrecision === 'county' ? 'County-only location.' : 'City / township reporting area.'} Exact incident coordinates are absent from the CSV.</p>}{selected.source === 'cjic-crime' && <p>Linked victim races: {selected.victimRaces?.join(', ') || 'No linked victim record'}</p>}<dl className="record-fields" aria-label="All source fields">{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{field}</dt><dd>{value === '' || value === null ? <span className="missing-value">Not reported</span> : String(value)}</dd></div>)}</dl>{isCJIC(selected.source) && <a className="small-link" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/michigan-cjic/${selected.source === 'cjic-crime' ? 'crime' : 'victim'}-live.csv`} download><Download size={13} />Original source CSV</a>}</div>}
+        {selected && <div className="selected-card"><div className="selected-eyebrow">{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel} RECORD<button className="icon-button" aria-label="Close record details" title="Close record details" onClick={() => setSelectedId(null)}><X size={13} /></button></div><strong>{selected.description}</strong><p>{selected.neighborhood || selected.intersection || 'Location unavailable'}{selected.county ? `, ${selected.county}` : ''} / {recordDate(selected)}</p>{isCJIC(selected.source) && <p>{selected.locationPrecision === 'county' ? 'County-only location.' : 'City / township reporting area.'} Exact incident coordinates are absent from the CSV.</p>}{selected.source === 'cjic-crime' && <p>Linked victim races: {selected.victimRaces?.join(', ') || 'No linked victim record'}</p>}<dl className="record-fields" aria-label="Record details">{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{recordFieldLabel(field)}</dt><dd>{value === '' || value === null ? <span className="missing-value">Not reported</span> : String(value)}</dd></div>)}</dl>{isCJIC(selected.source) && <a className="small-link" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/michigan-cjic/${selected.source === 'cjic-crime' ? 'crime' : 'victim'}-live.csv`} download><Download size={13} />Original source CSV</a>}</div>}
         <RecordList incidents={incidents} selectedId={selectedId} onSelect={selectRecord} message={incidents.length ? undefined : loading ? 'Loading selected public records...' : !sources.length ? 'No data sources selected.' : hasRecentPeriod && hasCJIC ? 'CJIC has year-only dates. Select a year or all available years to see those records.' : races.includes('__none__') ? 'No races selected.' : 'No records match the selected filters.'} />
-        {!loading && (remoteHasMore || localHasMore) && <button className="load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Loading...' : <>Load more records <ArrowDown size={14} /></>}</button>}
+        {!loading && (remoteHasMore || localHasMore) && <button className="load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Loading...' : <>Load more source records ({Math.max(0, total - loadedCount).toLocaleString()} not loaded) <ArrowDown size={14} /></>}</button>}
         </div>}
       </section></div>
 

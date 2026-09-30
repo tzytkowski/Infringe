@@ -54,11 +54,15 @@ export function queryCJIC(manifest, chunks, filters) {
 
   available.forEach((chunk, chunkIndex) => {
     const matchingValues = term ? chunk.dictionaries.map((dictionary) => Uint8Array.from(dictionary.map((entry) => entry.toLowerCase().includes(term) ? 1 : 0))) : null;
-    const categoryIndex = category ? chunk.dictionaries[chunk.columns.MICR_OFFENSE].indexOf(category) : -1;
-    if (category && categoryIndex < 0) return;
+    const homicide = category === 'group:homicide';
+    const offenseDictionary = chunk.dictionaries[chunk.columns.MICR_OFFENSE];
+    const categoryIndex = category && !homicide ? offenseDictionary.indexOf(category) : -1;
+    const homicideValues = homicide ? Uint8Array.from(offenseDictionary.map((offense) => /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(offense) ? 1 : 0)) : null;
+    if (category && !homicide && categoryIndex < 0) return;
     for (let row = 0; row < chunk.count; row++) {
       const rowStart = row * chunk.fields.length;
-      if (category && chunk.values[rowStart + chunk.columns.MICR_OFFENSE] !== categoryIndex) continue;
+      const offenseIndex = chunk.values[rowStart + chunk.columns.MICR_OFFENSE];
+      if (homicide ? !homicideValues[offenseIndex] : category && offenseIndex !== categoryIndex) continue;
       if (filteredByRace && !(chunk.masks[row] & raceMask)) continue;
       if (matchingValues && !matchingValues.some((matches, column) => matches[chunk.values[rowStart + column]])) continue;
       const rawKey = `${value(chunk, row, 'COUNTY_DESCRIPTION')}|${value(chunk, row, 'CITY_DESCRIPTION')}`;

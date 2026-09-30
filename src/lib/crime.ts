@@ -124,6 +124,10 @@ export function crimeGroup(category: string) {
   return 'Other';
 }
 
+export function isHomicideOffense(value: string) {
+  return /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(value);
+}
+
 export const GROUP_COLORS: Record<string, string> = {
   Person: '#fb6b6b',
   Property: '#f4ba63',

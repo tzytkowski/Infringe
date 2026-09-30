@@ -9,9 +9,10 @@ import type { CJICManifest, CJICResponse, ComparisonMap } from '@/lib/crime';
 type Cohort = { scope: string; period: string; category: string; race: string };
 type Props = { manifest: CJICManifest; initialScope: string; onMapChange: (value: ComparisonMap | null) => void; onSelectArea: (key: string) => void; selectedAreaKey: string | null };
 const number = (value: number) => value.toLocaleString('en-US', { maximumFractionDigits: 1 });
-function change(a: number, b: number) {
+function change(a: number, b: number, unequalDuration = false) {
   const percent = percentChange(a, b);
-  return `${b - a > 0 ? '+' : ''}${number(b - a)} / ${percent === null ? 'no baseline' : `${percent > 0 ? '+' : ''}${number(percent)}%`}`;
+  const reason = unequalDuration ? 'periods differ' : a < 10 || b < 10 ? 'small counts' : percent === null ? 'no baseline' : `${percent > 0 ? '+' : ''}${number(percent)}%`;
+  return `${b - a > 0 ? '+' : ''}${number(b - a)} / ${reason}`;
 }
 
 function CohortControls({ name, value, onChange, manifest }: { name: 'A' | 'B'; value: Cohort; onChange: (value: Cohort) => void; manifest: CJICManifest }) {
@@ -24,7 +25,7 @@ function CohortControls({ name, value, onChange, manifest }: { name: 'A' | 'B'; 
       {['Oakland', 'Macomb'].map((county) => <optgroup label={`${county} County`} key={county}><option value={`county:${county}`}>{county} — all reporting places</option>{manifest.areas.filter((area) => area.county === county && area.precision === 'reporting-area').map((area) => <option key={area.key} value={area.key}>{area.city}</option>)}<option value={`${county}|__county__`}>County-only / unresolved locations</option></optgroup>)}
     </select>
     <label htmlFor={`${prefix}-period`}>Year</label><select id={`${prefix}-period`} value={value.period} onChange={(e) => onChange({ ...value, period: e.target.value })}><option value="all">All available years</option>{years.map((year) => <option value={year} key={year}>{year}{year === Number(manifest.coverageEnd.slice(0, 4)) ? ' (through Jun 30)' : ''}</option>)}</select>
-    <label htmlFor={`${prefix}-offense`}>Offense</label><select id={`${prefix}-offense`} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })}><option value="">All offenses</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
+    <label htmlFor={`${prefix}-offense`}>Offense</label><select id={`${prefix}-offense`} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })}><option value="">All offenses</option><option value="group:homicide">Homicide / Murder (related offenses)</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
     <label htmlFor={`${prefix}-race`}>Victim race</label><select id={`${prefix}-race`} value={value.race} onChange={(e) => onChange({ ...value, race: e.target.value })}><option value="">All races</option>{manifest.races.map((race) => <option key={race}>{race}</option>)}</select>
   </fieldset>;
 }
@@ -78,6 +79,7 @@ export default function CJICComparison({ manifest, initialScope, onMapChange, on
   const countyOnly = (response: CJICResponse) => response.areas.filter((area) => area.precision === 'county').reduce((total, area) => total + area.crime + area.victims, 0);
   const partial = [a.period, b.period].some((period) => period === 'all' || period === manifest.coverageEnd.slice(0, 4));
   const mixedPeriods = (a.period === 'all') !== (b.period === 'all');
+  const unequalDuration = mixedPeriods || (a.period !== b.period && (a.period === manifest.coverageEnd.slice(0, 4) || b.period === manifest.coverageEnd.slice(0, 4)));
   const hasDemographic = ['race', 'age', 'sex'].includes(breakdown);
   const chartValue = (row: typeof dataRows[number], side: 'a' | 'b') => {
     const cohort = side === 'a' ? a : b;
@@ -88,8 +90,8 @@ export default function CJICComparison({ manifest, initialScope, onMapChange, on
   const chartMaximum = Math.max(1, ...chartRows.flatMap((row) => [chartValue(row, 'a') ?? 0, chartValue(row, 'b') ?? 0]));
   function buildExportCSV() {
     if (!result) return null;
-    const configRows: (string | number | null)[][] = [['Cohort', 'Place', 'Year', 'Offense', 'Victim race'], ...[a, b].map((cohort, index) => [index ? 'B' : 'A', scopeLabel(manifest, cohort.scope), cohort.period, cohort.category || 'All offenses', cohort.race || 'All races']), [], ['Area', 'County', 'Boundary precision', 'A crime rows', 'B crime rows', 'Crime change', 'Crime change %', 'A victim rows', 'B victim rows', 'Victim change', 'Victim change %']];
-    const rows = areas.map(({ area, a, b }) => [area.city, area.county, area.precision, a?.crime ?? null, b?.crime ?? null, a && b ? b.crime - a.crime : null, a && b ? percentChange(a.crime, b.crime) : null, a?.victims ?? null, b?.victims ?? null, a && b ? b.victims - a.victims : null, a && b ? percentChange(a.victims, b.victims) : null]);
+    const configRows: (string | number | null)[][] = [['Cohort', 'Place', 'Year', 'Offense', 'Victim race'], ...[a, b].map((cohort, index) => [index ? 'B' : 'A', scopeLabel(manifest, cohort.scope), cohort.period, cohort.category === 'group:homicide' ? 'Homicide / Murder' : cohort.category || 'All offenses', cohort.race || 'All races']), [], ['Area', 'County', 'Boundary precision', 'A crime rows', 'B crime rows', 'Crime change', 'Crime change %', 'A victim rows', 'B victim rows', 'Victim change', 'Victim change %']];
+    const rows = areas.map(({ area, a, b }) => [area.city, area.county, area.precision, a?.crime ?? null, b?.crime ?? null, a && b ? b.crime - a.crime : null, a && b && !unequalDuration && a.crime >= 10 && b.crime >= 10 ? percentChange(a.crime, b.crime) : null, a?.victims ?? null, b?.victims ?? null, a && b ? b.victims - a.victims : null, a && b && !unequalDuration && a.victims >= 10 && b.victims >= 10 ? percentChange(a.victims, b.victims) : null]);
     const breakdownRows = dataRows.map((row) => {
       const outsideA = breakdown === 'years' && a.period !== 'all' && row.key !== a.period;
       const outsideB = breakdown === 'years' && b.period !== 'all' && row.key !== b.period;
@@ -97,23 +99,24 @@ export default function CJICComparison({ manifest, initialScope, onMapChange, on
     });
     return comparisonCSV([...configRows, ...rows, [], [breakdown, 'A crime rows', 'B crime rows', 'A victim rows', 'B victim rows'], ...breakdownRows]);
   }
-  const exportContent = useMemo(buildExportCSV, [result, configKey, breakdown]);
+  const exportContent = useMemo(buildExportCSV, [result, configKey, breakdown, unequalDuration]);
   // These aggregate exports are small. A self-contained URL also works in
   // static deployments and embedded browsers without a blob download handler.
   const exportUrl = exportContent === null ? null : `data:text/csv;charset=utf-8,${encodeURIComponent(exportContent)}`;
   return <div className="comparison-panel">
     <div className="comparison-intro"><h2>CJIC comparison</h2><p>Compare two places, years, offenses or victim races. Both datasets are included; these controls are independent of the records filters.</p></div>
     <div className="cohort-controls"><CohortControls name="A" manifest={manifest} value={a} onChange={setA} /><CohortControls name="B" manifest={manifest} value={b} onChange={setB} /></div>
-    <div className="comparison-actions"><button onClick={() => { setA(b); setB(a); }}><ArrowLeftRight size={14} />Swap A / B</button><a href={exportUrl || undefined} download="cjic-comparison.csv" aria-disabled={!exportUrl}><Download size={14} />Export data</a></div>
+    <div className="comparison-actions"><button onClick={() => { setA(b); setB(a); }}><ArrowLeftRight size={14} />Swap A / B</button><button disabled={completeYears.length < 2} onClick={() => { setA({ ...a, period: String(completeYears[1]) }); setB({ ...a, period: String(completeYears[0]) }); }}>Compare last 2 full years</button><a href={exportUrl || undefined} download="cjic-comparison.csv" aria-disabled={!exportUrl}><Download size={14} />Export data</a></div>
     {exportContent !== null && <details className="comparison-csv"><summary>View / copy CSV</summary><textarea aria-label="Comparison CSV data" readOnly value={exportContent} /><small>Use this copy if your browser does not save the download.</small></details>}
-    {partial && <p className="comparison-notice">2026 only covers January–June 30. A partial-year total cannot show an annual increase or decrease against a full year.</p>}
-    {mixedPeriods && <p className="comparison-notice">These periods have different lengths. Differences are raw counts, not annualized trends.</p>}
+    {partial && <p className="comparison-notice">The latest year ends {manifest.coverageEnd}. CJIC provides only the incident year, so matching January–June against the same months in an earlier year is unavailable. Use “Compare last 2 full years” for an equal-length year comparison.</p>}
+    {unequalDuration && <p className="comparison-notice">These periods have different lengths. Percentage changes are hidden; count differences are descriptive, not annualized trends.</p>}
+    {!unequalDuration && <p className="comparison-note">Percentage changes are hidden when either count is below 10; the count difference remains visible.</p>}
     {a.race !== b.race && <p className="comparison-note">The cohorts use different victim-race filters. Crime rows match linked victim races; unlinked crime rows are excluded when a race is selected.</p>}
     {loading && <p role="status" className="comparison-note">Analyzing all matching CJIC rows…</p>}
     {error && <div className="comparison-notice" role="alert">{error}<button className="comparison-retry" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={13} />Retry comparison</button></div>}
     {result && <>
       <div className="cohort-key"><span><i className="cohort-dot a" />A: {aLabel}</span><span><i className="cohort-dot b" />B: {bLabel}</span></div>
-      <div className="comparison-totals"><div><small>CRIME ROWS</small><strong>{number(aCrime)} → {number(bCrime)}</strong><span>{change(aCrime, bCrime)}</span></div><div><small>VICTIM ROWS</small><strong>{number(aVictims)} → {number(bVictims)}</strong><span>{change(aVictims, bVictims)}</span></div></div>
+      <div className="comparison-totals"><div><small>CRIME ROWS</small><strong>{number(aCrime)} → {number(bCrime)}</strong><span>{change(aCrime, bCrime, unequalDuration)}</span></div><div><small>VICTIM ROWS</small><strong>{number(aVictims)} → {number(bVictims)}</strong><span>{change(aVictims, bVictims, unequalDuration)}</span></div></div>
       <p className="comparison-note">Victim rows per 100 crime rows: A {aCrime ? number(aVictims / aCrime * 100) : 'N/A'} · B {bCrime ? number(bVictims / bCrime * 100) : 'N/A'}. This compares export row volumes, not victims per unique crime or a probability.</p>
       <div className="comparison-map-controls"><label>Map measure<select aria-label="Comparison map measure" value={metric} onChange={(e) => setMetric(e.target.value as typeof metric)}><option value="crime">Crime rows</option><option value="victims">Victim rows</option></select></label><label>Map view<select aria-label="Comparison map view" value={view} onChange={(e) => setView(e.target.value as typeof view)}><option value="change">Change: B − A</option><option value="a">Cohort A</option><option value="b">Cohort B</option></select></label></div>
       <label className="comparison-density"><input type="checkbox" checked={density} onChange={(e) => setDensity(e.target.checked)} />Map rows per sq km instead of counts</label>
@@ -121,7 +124,7 @@ export default function CJICComparison({ manifest, initialScope, onMapChange, on
       {selected && <div className="comparison-selection"><strong>{selected.area.city}, {selected.area.county}</strong><span>A: {selected.a ? `${number(selected.a.crime)} crime / ${number(selected.a.victims)} victim rows` : 'outside cohort'}</span><span>B: {selected.b ? `${number(selected.b.crime)} crime / ${number(selected.b.victims)} victim rows` : 'outside cohort'}</span><small>{selected.area.geographyLabel}. {selected.area.precision === 'county' ? 'No verified municipal boundary.' : 'Reporting boundary; exact incident locations are unavailable.'}</small></div>}
       <div className="comparison-section-title"><h3>Places</h3><select aria-label="Sort comparison places" value={areaSort} onChange={(e) => setAreaSort(e.target.value as typeof areaSort)}><option value="b">B count ↓</option><option value="a">A count ↓</option><option value="change">Largest change</option><option value="name">Name A–Z</option></select></div>
       <input className="comparison-search" aria-label="Find comparison place" placeholder="Find city / township…" value={areaSearch} onChange={(e) => setAreaSearch(e.target.value)} />
-      <div className="comparison-table-scroll"><table className="comparison-table"><caption>{metric === 'crime' ? 'Crime' : 'Victim'} rows by reporting place. Select a place to highlight its boundary.</caption><thead><tr><th>Place</th><th>A</th><th>B</th><th>Change</th></tr></thead><tbody>{areaRows.map(({ area, a, b }) => <tr key={area.key} className={area.key === selectedAreaKey ? 'active' : ''}><th><button onClick={() => onSelectArea(area.key)}>{area.city}<small>{area.county}{area.precision === 'county' ? ' · county only' : ''}</small></button></th><td>{a ? number(a[metric]) : '—'}</td><td>{b ? number(b[metric]) : '—'}</td><td>{a && b ? change(a[metric], b[metric]) : a ? 'A only' : 'B only'}</td></tr>)}</tbody></table>{!areaRows.length && <p className="comparison-note">No places match this search.</p>}</div>
+      <div className="comparison-table-scroll"><table className="comparison-table"><caption>{metric === 'crime' ? 'Crime' : 'Victim'} rows by reporting place. Select a place to highlight its boundary.</caption><thead><tr><th>Place</th><th>A</th><th>B</th><th>Change</th></tr></thead><tbody>{areaRows.map(({ area, a, b }) => <tr key={area.key} className={area.key === selectedAreaKey ? 'active' : ''}><th><button onClick={() => onSelectArea(area.key)}>{area.city}<small>{area.county}{area.precision === 'county' ? ' · county only' : ''}</small></button></th><td>{a ? number(a[metric]) : '—'}</td><td>{b ? number(b[metric]) : '—'}</td><td>{a && b ? change(a[metric], b[metric], unequalDuration) : a ? 'A only' : 'B only'}</td></tr>)}</tbody></table>{!areaRows.length && <p className="comparison-note">No places match this search.</p>}</div>
       <div className="comparison-section-title"><h3>Breakdown</h3><select aria-label="Comparison breakdown" value={breakdown} onChange={(e) => setBreakdown(e.target.value as typeof breakdown)}><option value="offenses">Offenses</option><option value="years">Year trend</option><option value="race">Victim race</option><option value="age">Victim age</option><option value="sex">Victim sex</option></select></div>
       {breakdown === 'years' && <p className="comparison-note">Years outside a cohort's selected period are unavailable, not zero. Choose all available years for a full trend.</p>}
       <div className="comparison-chart" aria-label={`${breakdown} comparison chart`} role="img">{chartRows.slice(0, 8).map((row) => {

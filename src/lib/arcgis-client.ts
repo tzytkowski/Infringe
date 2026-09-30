@@ -71,7 +71,13 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
   } else throw new Error('Invalid time period');
   if (category) {
     if (category.length > 120 || /[\x00-\x1f]/.test(category)) throw new Error('Invalid crime category');
-    where += ` AND ${source === 'clemis' ? 'CRIME_DESC' : 'offense_category'} = '${category.replaceAll("'", "''")}'`;
+    if (category === 'group:homicide') {
+      const fields = source === 'clemis' ? ['CRIME_DESC', 'CHARGEDESCRIPTION'] : ['offense_category', 'offense_description'];
+      const terms = ['HOMICIDE', 'MURDER', 'MANSLAUGHTER'];
+      where += ` AND (${fields.flatMap((name) => terms.map((term) => `UPPER(${name}) LIKE '%${term}%'`)).join(' OR ')})`;
+    } else {
+      where += ` AND ${source === 'clemis' ? 'CRIME_DESC' : 'offense_category'} = '${category.replaceAll("'", "''")}'`;
+    }
   }
   const base = baseQuery(source, where);
   const countParams = new URLSearchParams(base);

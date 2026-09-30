@@ -92,6 +92,15 @@ test('source selections, archived years, recent periods, category and all-field 
   assert.ok(filtered.incidents.every((record) => Object.values(record.fields).some((value) => value.toLowerCase().includes('black')) && record.category === archived.incidents[0].category));
 });
 
+test('grouped homicide filter counts every matching original offense label', () => {
+  const result = queryCJIC(manifest, chunks, { ...defaults, category: 'group:homicide' });
+  const expected = [...originalOffenseCounts].reduce((count, [key, rows]) =>
+    count + (/\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(key.split('|').slice(2).join('|')) ? rows : 0), 0);
+  assert.ok(expected > 0);
+  assert.equal(result.total, expected);
+  assert.ok(result.incidents.every((record) => /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(record.category)));
+});
+
 test('single and multiple victim races filter all map rows, and never invent race for unlinked crimes', () => {
   const black = queryCJIC(manifest, chunks, { ...defaults, sources: ['cjic-victim'], races: ['Black'] });
   assert.equal(black.total, 111570);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import { REGIONAL_FOCUS_BOUNDS, type AreaSummary, type CJICMetric, type ComparisonMap, type CrimeSource, type Incident, type RegionalFocus } from '@/lib/crime';
 import { agencyHeatWeight, reportingCount, reportingDensity, reportingDensityMaximum, reportingHeatValue } from '@/lib/map-density';
@@ -12,6 +12,7 @@ type Props = {
   selectedAreaKey: string | null;
   onSelect: (id: string) => void;
   resetSignal: number;
+  locateSignal: number;
   sources: CrimeSource[];
   areas: AreaSummary[];
   onSelectArea: (key: string) => void;
@@ -23,10 +24,22 @@ type Props = {
 const DETROIT_BOUNDS: [number, number, number, number] = [-83.35, 42.21, -82.88, 42.49];
 const COMBINED_BOUNDS: [number, number, number, number] = [-83.71, 42.21, -82.68, 42.92];
 
-export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSelect, resetSignal, sources, areas, onSelectArea, regionalFocus, metric, comparison }: Props) {
+function fitBoundsOneLevelCloser(instance: maplibregl.Map, bounds: [number, number, number, number], padding: number, duration: number, milesNorth = -2, milesEast = 5) {
+  const camera = instance.cameraForBounds(bounds, { padding });
+  if (!camera?.center) { instance.fitBounds(bounds, { padding, duration }); return; }
+  const center = maplibregl.LngLat.convert(camera.center);
+  // One degree of longitude narrows with latitude; regional views retain the tuned east/south offset.
+  const longitudeOffset = milesEast / (69.172 * Math.cos(center.lat * Math.PI / 180));
+  const latitudeOffset = milesNorth / 69.172;
+  instance.easeTo({ center: [center.lng + longitudeOffset, center.lat + latitudeOffset], zoom: Math.min((camera.zoom ?? instance.getZoom()) + 1, 17), bearing: camera.bearing, duration });
+}
+
+export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSelect, resetSignal, locateSignal, sources, areas, onSelectArea, regionalFocus, metric, comparison }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
+  const locationMarker = useRef<maplibregl.Marker | null>(null);
+  const [satellite, setSatellite] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const onSelectAreaRef = useRef(onSelectArea);
@@ -39,15 +52,25 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   metricRef.current = metric;
   const sourcesRef = useRef(sources);
   sourcesRef.current = sources;
-  const bounds = sources.length === 1 && sources[0] === 'detroit' && regionalFocus === 'both' ? DETROIT_BOUNDS
-    : sources.includes('detroit') && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
+  const detroitOnly = sources.length === 1 && sources[0] === 'detroit' && regionalFocus === 'both';
+  const bounds = detroitOnly ? DETROIT_BOUNDS
+    : sources.includes('clemis') && regionalFocus === 'both' ? COMBINED_BOUNDS
+      : sources.includes('detroit') && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
   const boundsKey = bounds.join(',');
   const boundsRef = useRef(bounds);
+  // Detroit used the shared two-mile-south offset. A three-mile-north offset moves
+  // that existing camera five miles north without changing the other presets.
+  const centerNorthMiles = detroitOnly ? 3 : -2;
+  const centerEastMiles = detroitOnly ? 3 : 5;
+  const centerNorthMilesRef = useRef(centerNorthMiles);
+  const centerEastMilesRef = useRef(centerEastMiles);
   const comparisonBounds = comparison && areas.length ? areas.reduce<[number, number, number, number]>((result, area) => [
     Math.min(result[0], area.bounds[0]), Math.min(result[1], area.bounds[1]), Math.max(result[2], area.bounds[2]), Math.max(result[3], area.bounds[3]),
   ], [Infinity, Infinity, -Infinity, -Infinity]) : null;
   const comparisonBoundsKey = comparisonBounds?.join(',') ?? '';
   boundsRef.current = comparisonBounds || bounds;
+  centerNorthMilesRef.current = centerNorthMiles;
+  centerEastMilesRef.current = centerEastMiles;
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -57,6 +80,12 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       style: {
         version: 8,
         sources: {
+          satellite: {
+            type: 'raster',
+            tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            attribution: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+          },
           osm: {
             type: 'raster',
             tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
@@ -65,6 +94,9 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
           },
         },
         layers: [{
+          id: 'satellite', type: 'raster', source: 'satellite', layout: { visibility: 'none' },
+          paint: { 'raster-brightness-min': 0, 'raster-brightness-max': 0.72, 'raster-contrast': 0.12 },
+        }, {
           id: 'osm', type: 'raster', source: 'osm',
           paint: { 'raster-saturation': -1, 'raster-brightness-min': 0, 'raster-brightness-max': 0.34, 'raster-contrast': 0.16 },
         }],
@@ -80,10 +112,11 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     const resizeObserver = new ResizeObserver(() => {
       instance.resize();
-      instance.fitBounds(boundsRef.current, { padding: 28, duration: 0 });
+      fitBoundsOneLevelCloser(instance, boundsRef.current, 28, 0, centerNorthMilesRef.current, centerEastMilesRef.current);
     });
     resizeObserver.observe(container.current);
     instance.on('load', () => {
+      fitBoundsOneLevelCloser(instance, bounds, 28, 0, centerNorthMiles, centerEastMiles);
       instance.addSource('cjic-areas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       instance.addLayer({
         id: 'cjic-area-heat', type: 'fill', source: 'cjic-areas',
@@ -190,8 +223,20 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         instance.on('mouseleave', layer, () => { instance.getCanvas().style.cursor = ''; });
       }
     });
-    return () => { resizeObserver.disconnect(); popup.current?.remove(); instance.remove(); map.current = null; };
+    return () => { resizeObserver.disconnect(); popup.current?.remove(); locationMarker.current?.remove(); locationMarker.current = null; instance.remove(); map.current = null; };
   }, []);
+
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    const updateBasemap = () => {
+      instance.setLayoutProperty('satellite', 'visibility', satellite ? 'visible' : 'none');
+      instance.setLayoutProperty('osm', 'visibility', satellite ? 'none' : 'visible');
+    };
+    if (instance.isStyleLoaded()) updateBasemap();
+    else instance.once('load', updateBasemap);
+    return () => { instance.off('load', updateBasemap); };
+  }, [satellite]);
 
   useEffect(() => {
     const instance = map.current;
@@ -256,12 +301,29 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   }, [selectedId, selectedAreaKey, incidents, areas]);
 
   useEffect(() => {
-    if (map.current) map.current.fitBounds(bounds, { padding: 28, duration: 700 });
-  }, [resetSignal, boundsKey]);
+    if (map.current) fitBoundsOneLevelCloser(map.current, bounds, 28, 700, centerNorthMiles, centerEastMiles);
+  }, [resetSignal, boundsKey, centerNorthMiles, centerEastMiles]);
+
+  useEffect(() => {
+    if (!locateSignal) return;
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const instance = map.current;
+      if (!instance) return;
+      if (!locationMarker.current) {
+        const marker = document.createElement('span');
+        marker.className = 'current-location-marker';
+        marker.setAttribute('aria-label', 'Your current location');
+        locationMarker.current = new maplibregl.Marker({ element: marker, anchor: 'center' }).addTo(instance);
+      }
+      locationMarker.current.setLngLat([coords.longitude, coords.latitude]);
+      instance.easeTo({ center: [coords.longitude, coords.latitude], zoom: Math.max(instance.getZoom(), 13), duration: 700 });
+    }, () => undefined, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
+  }, [locateSignal]);
 
   useEffect(() => {
     if (map.current && comparisonBounds) map.current.fitBounds(comparisonBounds, { padding: 48, maxZoom: 13, duration: 700 });
   }, [comparisonBoundsKey]);
 
-  return <div className="map-canvas" ref={container} aria-label="Agency incident heatmap and CJIC reporting-boundary density map" />;
+  return <><div className="map-canvas" ref={container} aria-label="Agency incident heatmap and CJIC reporting-boundary density map" /><button className="map-basemap-toggle" type="button" onClick={() => setSatellite((value) => !value)} aria-label={`Switch to ${satellite ? 'regular' : 'satellite'} map`} title={`Switch to ${satellite ? 'regular' : 'satellite'} map`}>{satellite ? 'Map' : 'Satellite'}</button></>;
 }

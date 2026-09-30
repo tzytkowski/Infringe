@@ -2,6 +2,8 @@
 
 A root-level Next.js and MapLibre OSINT dashboard app. Select any combination of Detroit Police, regional CLEMIS, Michigan CJIC crime, and Michigan CJIC victim data. Filter by period, offense, and reported victim race; inspect every original source field in record details.
 
+The offense menu includes a Homicide / Murder group that matches source labels containing homicide, murder, or manslaughter; record details retain each source's exact wording. Record sorting and the field/value dropdown operate on rows loaded into the records panel. The panel shows both its loaded-row count and the broader source-row count, with a button to load more rows. On the map, the crosshair centers on your location, a separate button resets the view, and the location marker shows the last position returned by the browser.
+
 ## Run locally
 
 ```powershell
@@ -67,7 +69,9 @@ The worker aggregates every matching export row before any record pagination. Th
 
 The comparison map can display A, B, or B minus A for crime or victim rows, with optional rows per square kilometer. Changes use a symmetric logarithmic scale: blue is lower in B, amber higher in B. A place outside one cohort is shown as A-only/B-only rather than falsely treating missing coverage as zero. Zero-match municipalities remain separate clickable overlays, including villages enclosed by townships. County-only rows remain in tables and totals with dashed county outlines and never contribute municipal density. Click a map area or a table place to highlight its boundary and inspect both counts. In Records, the CJIC map measure selector separates crime-row density from victim-row density; combining both requires selecting **All selected rows** explicitly.
 
-The 2026 snapshot stops June 30; comparisons involving it are flagged as partial-year comparisons. Changes describe export row volumes, not unique crimes, unique people, population-adjusted risk, annualized trends, or causal relationships. A zero baseline has no percentage change unless both counts are zero. Tests independently reconcile every city/year/source total and the analysis breakdowns against the original CSVs and verify county clipping, municipal aliases, empty overlays and missing-cohort handling.
+The 2026 snapshot stops June 30; comparisons involving it are flagged as partial-year comparisons. Changes describe export row volumes, not unique crimes, unique people, population-adjusted risk, annualized trends, or causal relationships. Tests independently reconcile every city/year/source total and the analysis breakdowns against the original CSVs and verify county clipping, municipal aliases, empty overlays and missing-cohort handling.
+
+**Compare last 2 full years** aligns place, offense, and victim-race filters across the latest two complete years. Because CJIC provides only incident years, it cannot compare the same months of a partial year against an earlier year. The panel hides percentage changes for unequal-length periods or counts below 10 while retaining raw differences.
 
 ## Data and coverage
 
