@@ -1,0 +1,59 @@
+{
+  "updatedAt": "2026-09-30",
+  "cases": [
+    {
+      "id": "2026-09-27-prest-eaton-detroit",
+      "incidentDate": "2026-09-27",
+      "category": "Homicide / Murder",
+      "label": "Three people killed in a shooting near Prest Street and Eaton Avenue",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Prest Street near Eaton Avenue",
+      "locationNote": "Marker is the Prest/Eaton intersection. Reports place the shooting near that intersection; it is not the confirmed address of the deaths.",
+      "longitude": -83.197318,
+      "latitude": 42.396696,
+      "victims": 3,
+      "reviewedAt": "2026-09-30",
+      "articles": [
+        { "outlet": "WXYZ", "url": "https://www.wxyz.com/news/region/detroit/mass-shooting-in-detroit-tied-to-cellphone-dispute-community-details-violence" },
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2026/09/27/7-shot-3-killed-in-mass-shooting-at-detroit-home/" }
+      ]
+    },
+    {
+      "id": "2026-09-26-mirhad-cehic-warren",
+      "incidentDate": "2026-09-26",
+      "category": "Homicide / Murder",
+      "label": "Mirhad Cehic killed after a vehicle attack at a Warren flea market",
+      "city": "Warren",
+      "county": "Macomb",
+      "location": "County Line Trade Center near Dequindre Road and Eight Mile Road",
+      "locationNote": "Marker is the Dequindre/Eight Mile intersection. Reports identify the flea market nearby; the marker is not the exact location where Cehic was struck.",
+      "longitude": -83.083354,
+      "latitude": 42.447291,
+      "victims": 1,
+      "reviewedAt": "2026-09-30",
+      "articles": [
+        { "outlet": "WXYZ", "url": "https://www.wxyz.com/news/region/macomb-county/father-of-five-run-over-killed-at-warren-flea-market-after-dispute-escalates" },
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2026/09/29/detroit-man-charged-with-murder-after-deadly-warren-flea-market-dispute/" }
+      ]
+    },
+    {
+      "id": "2026-09-20-jaquoya-wix-detroit",
+      "incidentDate": "2026-09-20",
+      "category": "Homicide / Murder",
+      "label": "Jaquoya Wix killed in a downtown Detroit stabbing",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Alley near Woodward Avenue and East Congress Street",
+      "locationNote": "Marker is the Woodward/East Congress intersection. Reports locate the stabbing in a nearby alley, not at the intersection itself.",
+      "longitude": -83.045892,
+      "latitude": 42.330155,
+      "victims": 1,
+      "reviewedAt": "2026-09-30",
+      "articles": [
+        { "outlet": "WXYZ", "url": "https://www.wxyz.com/news/vigil-held-for-jaquoya-wix-mother-fatally-stabbed-in-random-attack-behind-detroit-chipotle" },
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2026/09/21/woman-stabbed-to-death-while-on-lunch-break-in-downtown-detroit-was-attacked-at-random-family-says/" }
+      ]
+    }
+  ]
+}

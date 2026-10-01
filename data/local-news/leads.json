@@ -1,0 +1,118 @@
+{
+  "updatedAt": "2026-09-30T17:56:50.230Z",
+  "leads": [
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/29/her-death-looked-like-a-suicide-now-belleville-man-sentenced-to-prison-for-girlfriends-murder",
+      "title": "Her death appeared to be suicide. Now Wayne County man sentenced to prison for girlfriend’s murder",
+      "publishedAt": "2026-09-30T09:00:01.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/29/detroit-man-charged-with-murder-after-deadly-warren-flea-market-dispute",
+      "title": "Detroit man charged with murder after deadly Warren flea market refund dispute",
+      "publishedAt": "2026-09-29T23:17:25.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "reviewed",
+      "caseId": "2026-09-26-mirhad-cehic-warren"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/29/warren-double-homicide-from-1981-reopened-but-evidence-was-destroyed",
+      "title": "Warren double homicide from 1981 reopened, but evidence was destroyed",
+      "publishedAt": "2026-09-29T22:51:21.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/29/suspect-in-detroit-mass-shooting-that-killed-3-injured-4-now-in-custody",
+      "title": "Suspect in Detroit mass shooting that killed 3, injured 4 now in custody",
+      "publishedAt": "2026-09-29T21:24:51.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "reviewed",
+      "caseId": "2026-09-27-prest-eaton-detroit"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/28/he-didnt-deserve-this-friends-mourn-3-men-killed-in-detroit-after-hours-shooting",
+      "title": "‘He didn’t deserve this’: Friends mourn men killed in Detroit after-hours shooting",
+      "publishedAt": "2026-09-28T22:55:06.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "reviewed",
+      "caseId": "2026-09-27-prest-eaton-detroit"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/28/warren-flea-market-vendor-killed-after-dispute-over-refund-police-say",
+      "title": "Warren flea market vendor killed after dispute over refund, police say",
+      "publishedAt": "2026-09-28T22:14:44.000Z",
+      "firstSeenAt": "2026-09-30T17:47:24.511Z",
+      "status": "reviewed",
+      "caseId": "2026-09-26-mirhad-cehic-warren"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/macomb-county/father-of-five-run-over-killed-at-warren-flea-market-after-dispute-escalates",
+      "title": "Father of five run over, killed at Warren flea market after dispute escalates",
+      "publishedAt": "2026-09-28T19:18:32.000Z",
+      "firstSeenAt": "2026-09-30T17:47:21.622Z",
+      "status": "reviewed",
+      "caseId": "2026-09-26-mirhad-cehic-warren"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/crime/detroit-police-vow-increased-downtown-patrols-after-chipotle-worker-jaquoya-wix-is-murdered",
+      "title": "Detroit police vow increased downtown patrols after Chipotle worker Jaquoya Wix is murdered",
+      "publishedAt": "2026-09-24T21:35:26.000Z",
+      "firstSeenAt": "2026-09-30T17:47:19.858Z",
+      "status": "reviewed",
+      "caseId": "2026-09-20-jaquoya-wix-detroit"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/man-charged-with-first-degree-murder-in-stabbing-death-of-detroit-chipotle-worker-jaquoya-wix",
+      "title": "Man charged with first-degree murder in stabbing death of Detroit Chipotle worker Jaquoya Wix",
+      "publishedAt": "2026-09-23T23:19:31.000Z",
+      "firstSeenAt": "2026-09-30T17:47:19.858Z",
+      "status": "reviewed",
+      "caseId": "2026-09-20-jaquoya-wix-detroit"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/local-news/investigations/before-stabbing-court-kept-in-the-dark-over-chipotle-murder-suspects-mental-health",
+      "title": "Before stabbing, court 'kept in the dark' over Chipotle murder suspect's mental health",
+      "publishedAt": "2026-09-23T22:15:48.000Z",
+      "firstSeenAt": "2026-09-30T17:47:19.858Z",
+      "status": "reviewed",
+      "caseId": "2026-09-20-jaquoya-wix-detroit"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/3-years-later-grieving-mother-demands-justice-in-unsolved-murder-of-ecorse-athlete",
+      "title": "3 years later, grieving mother demands justice in unsolved murder of Ecorse athlete",
+      "publishedAt": "2026-09-22T00:01:14.000Z",
+      "firstSeenAt": "2026-09-30T17:47:20.854Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/oakland-county/man-killed-another-in-custody-after-domestic-related-shooting-in-pontiac",
+      "title": "Man killed, another in custody after domestic-related shooting in Pontiac",
+      "publishedAt": "2026-09-20T16:56:33.000Z",
+      "firstSeenAt": "2026-09-30T17:47:21.286Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/parents-charged-after-3-year-old-shot-and-killed-at-pontiac-apartment",
+      "title": "Parents charged after 3-year-old shot and killed at Pontiac apartment",
+      "publishedAt": "2026-09-18T18:09:30.000Z",
+      "firstSeenAt": "2026-09-30T17:47:21.286Z",
+      "status": "dismissed",
+      "reviewNote": "Reported accidental shooting, not a murder case."
+    }
+  ]
+}

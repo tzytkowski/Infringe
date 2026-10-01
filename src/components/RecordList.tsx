@@ -31,7 +31,7 @@ export default function RecordList({ incidents, selectedId, onSelect, message }:
         return <button className={`record ${selectedId === item.id ? 'active' : ''}`} style={{ top: (start + index) * rowHeight, height: rowHeight }} key={item.id} onClick={() => onSelect(item.id)}>
           <span className="record-accent" style={{ background: GROUP_COLORS[crimeGroup(item.category)] }} />
           <span className="record-body"><span className="record-source" style={{ color: source.color }}>{source.shortLabel}{item.race ? ` / ${item.race}` : ''}</span>
-            <strong>{item.description}</strong><span className="record-meta"><MapPin size={11} />{item.neighborhood || item.intersection || 'Location unavailable'}{item.county ? `, ${item.county}` : ''}</span>
+            <strong>{item.description}</strong><span className="record-meta"><MapPin size={11} />{item.source === 'news' ? item.intersection : item.neighborhood || item.intersection || 'Location unavailable'}{item.county ? `, ${item.county}` : ''}</span>
             <span className="record-meta">{recordDate(item)}</span></span><ArrowUpRight size={14} className="record-arrow" />
         </button>;
       })}

@@ -8,14 +8,16 @@ export const CLEMIS_SOURCE = 'https://experience.arcgis.com/experience/a94546852
 export const CJIC_SOURCE = 'https://www.michigan.gov/msp/divisions/cjic/dashboard-portal/crime-dashboard';
 export type RemoteSource = 'detroit' | 'clemis';
 export type CJICSource = 'cjic-crime' | 'cjic-victim';
-export type CrimeSource = RemoteSource | CJICSource;
+export type CrimeSource = RemoteSource | CJICSource | 'news';
 export const DATA_SOURCES: { id: CrimeSource; label: string; shortLabel: string; coverage: string; color: string; url: string }[] = [
+  { id: 'news', label: 'Local news reports', shortLabel: 'NEWS', coverage: 'WXYZ + WDIV / reviewed cases', color: '#ed8f77', url: 'https://www.wxyz.com/about-us/rss' },
   { id: 'clemis', label: 'CLEMIS offenses', shortLabel: 'CLEMIS', coverage: 'Oakland + Macomb / 2026 onward', color: '#f4ba63', url: CLEMIS_SOURCE },
   { id: 'detroit', label: 'Detroit Police', shortLabel: 'DPD', coverage: 'Detroit / December 2016 onward', color: '#fb6b6b', url: DETROIT_SOURCE },
   { id: 'cjic-crime', label: 'CJIC crime', shortLabel: 'CJIC CRIME', coverage: 'Oakland + Macomb / 2021-2026', color: '#79cfad', url: CJIC_SOURCE },
   { id: 'cjic-victim', label: 'CJIC victims', shortLabel: 'CJIC VICTIM', coverage: 'Oakland + Macomb / 2021-2026', color: '#b7a0ee', url: CJIC_SOURCE },
 ];
 export function isCJIC(source: CrimeSource): source is CJICSource { return source === 'cjic-crime' || source === 'cjic-victim'; }
+export function isRemoteSource(source: CrimeSource): source is RemoteSource { return source === 'detroit' || source === 'clemis'; }
 export type RegionalFocus = 'both' | 'oakland' | 'macomb';
 
 // The map extents include a little space around both counties. Incident queries
@@ -51,7 +53,9 @@ export type Incident = {
   race?: string;
   victimRaces?: string[];
   areaKey?: string;
-  locationPrecision?: 'point' | 'reporting-area' | 'county';
+  locationPrecision?: 'point' | 'approximate-point' | 'reporting-area' | 'county';
+  datePrecision?: 'date';
+  sourceArticles?: { outlet: string; url: string }[];
   fields: Record<string, string | number | null>;
 };
 
@@ -104,7 +108,11 @@ export type ComparisonMap = {
 };
 
 export function recordDate(item: Incident) {
-  return item.year !== undefined ? `${item.year} (year only)` : formatDate(item.occurredAt);
+  if (item.year !== undefined) return `${item.year} (year only)`;
+  if (item.datePrecision === 'date' && item.occurredAt) return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Detroit', month: 'short', day: 'numeric', year: 'numeric',
+  }).format(item.occurredAt);
+  return formatDate(item.occurredAt);
 }
 
 export type IncidentResponse = {

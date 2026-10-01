@@ -54,8 +54,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   sourcesRef.current = sources;
   const detroitOnly = sources.length === 1 && sources[0] === 'detroit' && regionalFocus === 'both';
   const bounds = detroitOnly ? DETROIT_BOUNDS
-    : sources.includes('clemis') && regionalFocus === 'both' ? COMBINED_BOUNDS
-      : sources.includes('detroit') && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
+    : (sources.includes('clemis') || sources.includes('detroit') || sources.includes('news')) && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
   const boundsKey = bounds.join(',');
   const boundsRef = useRef(bounds);
   // Detroit used the shared two-mile-south offset. A three-mile-north offset moves
@@ -140,6 +139,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         type: 'geojson',
         data: { type: 'FeatureCollection', features: [] },
       });
+      instance.addSource('news-cases', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       instance.addLayer({
         id: 'incident-density', type: 'heatmap', source: 'incidents',
         paint: {
@@ -165,6 +165,19 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         paint: { 'circle-color': '#ffffff', 'circle-opacity': 0.001, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 7, 13, 12] },
       });
       instance.addLayer({
+        id: 'news-case-points', type: 'circle', source: 'news-cases',
+        paint: { 'circle-radius': 8, 'circle-color': '#ed8f77', 'circle-stroke-color': '#fff4e4', 'circle-stroke-width': 2, 'circle-opacity': 0.95 },
+      });
+      instance.addLayer({
+        id: 'news-case-hit-targets', type: 'circle', source: 'news-cases',
+        paint: { 'circle-radius': 14, 'circle-color': '#ed8f77', 'circle-opacity': 0.001 },
+      });
+      instance.addLayer({
+        id: 'selected-news-case', type: 'circle', source: 'news-cases',
+        filter: ['==', ['get', 'id'], ''],
+        paint: { 'circle-radius': 17, 'circle-color': '#ed8f77', 'circle-opacity': 0.12, 'circle-stroke-color': '#fff4e4', 'circle-stroke-width': 2 },
+      });
+      instance.addLayer({
         id: 'selected-halo', type: 'circle', source: 'incidents',
         filter: ['==', ['get', 'id'], ''],
         paint: { 'circle-radius': 18, 'circle-color': '#ffffff', 'circle-opacity': 0.13, 'circle-stroke-color': '#ffffff', 'circle-stroke-opacity': 0.8, 'circle-stroke-width': 1.5 },
@@ -181,7 +194,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       });
       instance.on('click', (event) => {
         // Actual incident points take priority over the reporting polygons underneath.
-        const point = instance.queryRenderedFeatures(event.point, { layers: ['incident-hit-targets'] })[0];
+        const point = instance.queryRenderedFeatures(event.point, { layers: ['news-case-hit-targets', 'incident-hit-targets'] })[0];
         if (point?.properties.id != null) { onSelectRef.current(String(point.properties.id)); return; }
         const feature = instance.queryRenderedFeatures(event.point, { layers: ['cjic-area-heat', 'cjic-county-outlines'] })
           .find((item) => item.properties.precision === 'reporting-area')
@@ -218,7 +231,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         popup.current?.remove();
         popup.current = new maplibregl.Popup().setLngLat(event.lngLat).setDOMContent(content).addTo(instance);
       });
-      for (const layer of ['cjic-area-heat', 'cjic-county-outlines', 'incident-hit-targets']) {
+      for (const layer of ['cjic-area-heat', 'cjic-county-outlines', 'incident-hit-targets', 'news-case-hit-targets']) {
         instance.on('mouseenter', layer, () => { instance.getCanvas().style.cursor = 'pointer'; });
         instance.on('mouseleave', layer, () => { instance.getCanvas().style.cursor = ''; });
       }
@@ -256,6 +269,10 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
             properties: { id: item.id, kind: 'incident' },
           })),
       });
+      const newsSource = instance.getSource('news-cases') as maplibregl.GeoJSONSource | undefined;
+      newsSource?.setData({ type: 'FeatureCollection', features: incidents
+        .filter((item) => item.source === 'news' && item.locationPrecision === 'approximate-point' && item.longitude !== null && item.latitude !== null)
+        .map((item) => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [item.longitude!, item.latitude!] }, properties: { id: item.id } })) });
       const areaSource = instance.getSource('cjic-areas') as maplibregl.GeoJSONSource | undefined;
       const maximum = reportingDensityMaximum(areas, metric);
       const entries = comparison ? comparisonFeatures(comparison) : null;
@@ -280,6 +297,8 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       instance.setPaintProperty('cjic-area-heat', 'fill-opacity', ['case', ['any', ['==', ['get', 'count'], 0], ['==', ['get', 'count'], null]], 0.95, 0.68]);
       instance.setLayoutProperty('incident-density', 'visibility', comparison ? 'none' : 'visible');
       instance.setLayoutProperty('incident-hit-targets', 'visibility', comparison ? 'none' : 'visible');
+      instance.setLayoutProperty('news-case-points', 'visibility', comparison ? 'none' : 'visible');
+      instance.setLayoutProperty('news-case-hit-targets', 'visibility', comparison ? 'none' : 'visible');
     };
     if (instance.getSource('incidents')) update();
     else instance.once('load', update);
@@ -290,14 +309,15 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     const instance = map.current;
     if (!instance || !instance.getLayer('selected-halo')) return;
     const selected = incidents.find((item) => item.id === selectedId);
-    const filter: maplibregl.FilterSpecification = ['==', ['get', 'id'], selected?.locationPrecision === 'point' ? selectedId ?? '' : ''];
+    const filter: maplibregl.FilterSpecification = ['==', ['get', 'id'], selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') ? selectedId ?? '' : ''];
     instance.setFilter('selected-halo', filter);
     instance.setFilter('selected-point', filter);
+    instance.setFilter('selected-news-case', ['==', ['get', 'id'], selected?.source === 'news' ? selectedId ?? '' : '']);
     const key = selected?.areaKey || selectedAreaKey;
     instance.setFilter('selected-area', ['==', ['get', 'key'], key ?? '']);
     const area = areas.find((item) => item.key === key);
     if (area) instance.fitBounds(area.bounds, { padding: 48, maxZoom: 13, duration: 650 });
-    else if (selected?.locationPrecision === 'point' && selected.longitude !== null && selected.latitude !== null) instance.easeTo({ center: [selected.longitude, selected.latitude], zoom: Math.max(instance.getZoom(), 12), duration: 650 });
+    else if (selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') && selected.longitude !== null && selected.latitude !== null) instance.easeTo({ center: [selected.longitude, selected.latitude], zoom: Math.max(instance.getZoom(), 12), duration: 650 });
   }, [selectedId, selectedAreaKey, incidents, areas]);
 
   useEffect(() => {
