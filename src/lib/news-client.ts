@@ -1,4 +1,4 @@
-import { crimeGroup, type Incident } from './crime';
+import { isHomicideOffense, type Incident } from './crime';
 
 export type LocalNewsCase = {
   id: string;
@@ -79,7 +79,7 @@ export function filterNewsCases(file: NewsFile | null, period: string, category:
   if (!file || races.length) return [];
   const term = search.trim().toLowerCase();
   return file.cases.filter((item) => {
-    if (category === 'group:homicide' && crimeGroup(item.category) !== 'Homicide / Murder') return false;
+    if (category === 'group:homicide' && !isHomicideOffense(item.category)) return false;
     if (category && category !== 'group:homicide' && item.category !== category) return false;
     const when = dateValue(item.incidentDate);
     // Date-only reports cannot answer an exact rolling 24-hour query.
