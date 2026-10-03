@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { dateOnlyMatchesPeriod } from '../src/lib/date-only-period.mjs';
 import { parseFeed } from './collect-news-leads.mjs';
 
 function feed(items) {
@@ -46,4 +47,26 @@ test('reviewed cases have distinct IDs, geographic notes, and direct publisher c
     assert.deepEqual(new Set(item.articles.map((article) => article.outlet)), new Set(['WXYZ', 'WDIV']));
     for (const article of item.articles) assert.match(article.url, /^https:\/\/www\.(wxyz\.com|clickondetroit\.com)\//);
   }
+});
+
+test('date-only cases match rolling windows when their calendar day overlaps', () => {
+  const now = Date.parse('2026-10-03T16:00:00Z');
+
+  assert.equal(dateOnlyMatchesPeriod('2026-10-03', '24h', now), true);
+  assert.equal(dateOnlyMatchesPeriod('2026-10-02', '24h', now), true);
+  assert.equal(dateOnlyMatchesPeriod('2026-10-01', '24h', now), false);
+  assert.equal(dateOnlyMatchesPeriod('2026-10-04', '24h', now), false);
+
+  assert.equal(dateOnlyMatchesPeriod('2026-09-26', '7d', now), true);
+  assert.equal(dateOnlyMatchesPeriod('2026-09-25', '7d', now), false);
+  assert.equal(dateOnlyMatchesPeriod('2026-09-03', '30d', now), true);
+  assert.equal(dateOnlyMatchesPeriod('2026-09-02', '30d', now), false);
+});
+
+test('date-only cases remain selectable by archived year', () => {
+  const now = Date.parse('2026-10-03T16:00:00Z');
+
+  assert.equal(dateOnlyMatchesPeriod('2014-05-20', '2014', now), true);
+  assert.equal(dateOnlyMatchesPeriod('2014-05-20', '2015', now), false);
+  assert.equal(dateOnlyMatchesPeriod('2014-05-20', 'all', now), true);
 });

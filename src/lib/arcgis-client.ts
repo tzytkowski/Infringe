@@ -63,8 +63,10 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
   else if (period === '24h') where = dateWhere(1, field);
   else if (period === '7d') where = dateWhere(7, field);
   else if (period === '30d') where = dateWhere(30, field);
-  else if (/^\d{4}$/.test(period) && Number(period) >= 2016 && Number(period) <= currentYear) {
-    if (source === 'clemis' && Number(period) < 2026) return { incidents: [], total: 0, offset, limit: 1000, nextOffset: offset, fetchedAt: new Date().toISOString() };
+  else if (/^\d{4}$/.test(period) && Number(period) >= 1900 && Number(period) <= currentYear) {
+    if ((source === 'clemis' && Number(period) < 2026) || (source === 'detroit' && Number(period) < 2016)) {
+      return { incidents: [], total: 0, offset, limit: 1000, nextOffset: offset, fetchedAt: new Date().toISOString() };
+    }
     where = source === 'clemis'
       ? `FROM_DATE >= TIMESTAMP '${period}-01-01 00:00:00' AND FROM_DATE < TIMESTAMP '${Number(period) + 1}-01-01 00:00:00'`
       : `incident_year = ${Number(period)}`;

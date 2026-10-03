@@ -1,4 +1,5 @@
 import { isHomicideOffense, type Incident } from './crime';
+import { dateOnlyMatchesPeriod, dateOnlyValue } from './date-only-period.mjs';
 
 export type LocalNewsCase = {
   id: string;
@@ -19,8 +20,7 @@ export type LocalNewsCase = {
 export type NewsFile = { updatedAt: string; cases: LocalNewsCase[] };
 
 function dateValue(date: string) {
-  // Noon in Detroit avoids displaying an adjacent day when the source gives a date only.
-  return Date.parse(`${date}T12:00:00-04:00`);
+  return dateOnlyValue(date);
 }
 
 export function validateNewsFile(value: unknown): NewsFile {
@@ -81,12 +81,7 @@ export function filterNewsCases(file: NewsFile | null, period: string, category:
   return file.cases.filter((item) => {
     if (category === 'group:homicide' && !isHomicideOffense(item.category)) return false;
     if (category && category !== 'group:homicide' && item.category !== category) return false;
-    const when = dateValue(item.incidentDate);
-    // Date-only reports cannot answer an exact rolling 24-hour query.
-    if (period === '24h') return false;
-    if (period === '7d' && (when < now - 7 * 86_400_000 || when > now)) return false;
-    if (period === '30d' && (when < now - 30 * 86_400_000 || when > now)) return false;
-    if (/^\d{4}$/.test(period) && item.incidentDate.slice(0, 4) !== period) return false;
+    if (!dateOnlyMatchesPeriod(item.incidentDate, period, now)) return false;
     if (term && ![item.label, item.city, item.county, item.location, ...item.articles.map((article) => article.outlet)].some((value) => value.toLowerCase().includes(term))) return false;
     return true;
   }).map(newsCaseToIncident);

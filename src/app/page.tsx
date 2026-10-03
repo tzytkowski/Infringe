@@ -15,7 +15,7 @@ import { fetchNewsCases, filterNewsCases, type NewsFile } from '@/lib/news-clien
 
 const CrimeMap = dynamic(() => import('@/components/CrimeMap'), { ssr: false });
 const currentYear = new Date().getFullYear();
-const years = Array.from({ length: currentYear - 2015 }, (_, index) => currentYear - index);
+const agencyYears = Array.from({ length: currentYear - 2015 }, (_, index) => currentYear - index);
 type RemoteState = { data: IncidentResponse | null; loading: boolean; error: string | null };
 type RecordSort = 'newest' | 'oldest' | 'offense-asc' | 'offense-desc' | 'location-asc' | 'location-desc' | 'source-asc' | 'source-desc';
 
@@ -187,6 +187,11 @@ export default function Home() {
     ...sources.filter(isCJIC).flatMap((source) => manifest?.sources[source].categories || []),
     ...(sources.includes('news') ? newsFile?.cases.map((item) => item.category) || [] : []),
   ])].sort(), [remoteCategories, sourceKey, manifest, newsFile]);
+  const years = useMemo(() => [...new Set([
+    ...agencyYears,
+    ...(newsFile?.cases.map((item) => Number(item.incidentDate.slice(0, 4))) || []),
+    ...Object.values(manifest?.sources || {}).flatMap((source) => source.chunks.map((chunk) => chunk.year)),
+  ])].filter((year) => Number.isInteger(year) && year <= currentYear).sort((a, b) => b - a), [newsFile, manifest]);
   const remoteIncidents = useMemo(() => Object.values(remote).flatMap((state) => state?.data?.incidents || []), [remote]);
   const visibleRemote = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
@@ -296,10 +301,10 @@ export default function Home() {
     setCategory('');
     if (next.length === 1 && next[0] === 'detroit') setRegionalFocus('both');
     if (!next.some(isCJIC)) setRaces([]);
-    if (!next.some(isCJIC) && next.length > 0 && !next.includes('news')) {
+    if (next.length === 1 && next[0] === 'news' && period === '24h') {
+      setPeriod('all');
+    } else if (!next.some(isCJIC) && next.length > 0 && !next.includes('news')) {
       setPeriod('24h');
-    } else if (next.includes('news') && !next.some(isCJIC) && period === '24h') {
-      setPeriod('30d');
     } else if (next.some(isCJIC) && ['24h', '7d', '30d'].includes(period)) {
       const availableYears = next.filter(isCJIC).flatMap((source) => manifest?.sources[source].chunks.map((chunk) => chunk.year) || []);
       setPeriod(availableYears.length ? String(Math.max(...availableYears)) : 'all');
@@ -323,7 +328,7 @@ export default function Home() {
   const sourceStatus = (source: CrimeSource) => {
     if (!sources.includes(source)) return '';
     if (!isCJIC(source) && races.length) return 'No race field';
-    if (source === 'news') return newsError ? 'Unavailable' : newsFile ? `${newsIncidents.length.toLocaleString()} reviewed cases` : 'Loading...';
+    if (source === 'news') return newsError ? 'Unavailable' : newsFile ? `${newsIncidents.length.toLocaleString()} matching / ${newsFile.cases.length.toLocaleString()} archived` : 'Loading...';
     if (isCJIC(source)) return localLoading ? 'Loading...' : localError ? 'Unavailable' : `${(local?.sourceCounts[source] || 0).toLocaleString()} rows`;
     return remote[source]?.loading ? 'Loading...' : remote[source]?.error ? 'Unavailable' : `${(remote[source]?.data?.total || 0).toLocaleString()} rows`;
   };
@@ -351,7 +356,7 @@ export default function Home() {
 
       <section className="filter-section"><div className="section-label"><span>02</span> TIME PERIOD</div><label className="field-label" htmlFor="period">Reporting period</label><select id="period" value={period} onChange={(event) => setPeriod(event.target.value)}>
         <option value="all">All available years</option><option value="24h" disabled={hasCJIC}>Past 24 hours</option><option value="7d" disabled={hasCJIC}>Past 7 days</option><option value="30d" disabled={hasCJIC}>Past 30 days</option><optgroup label="By year">{years.map((year) => <option value={year} key={year}>{year}</option>)}</optgroup>
-      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{!hasCJIC && <p className="field-note">CLEMIS regional history starts in 2026; Detroit history starts in December 2016.</p>}{sources.includes('news') && <p className="field-note">News cases are reviewed individually and have date-only precision. They are excluded from the exact past-24-hours filter.</p>}</section>
+      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{!hasCJIC && <p className="field-note">CLEMIS regional history starts in 2026; Detroit history starts in December 2016.</p>}{sources.includes('news') && <p className="field-note">News filters cover every available year. Cases have date-only precision, so the past-24-hours view includes any reported day that overlaps that rolling window. The reviewed archive currently contains {newsFile?.cases.length.toLocaleString() || 0} cases; RSS does not provide older history automatically.</p>}</section>
 
       <section className="filter-section"><div className="section-label"><span>03</span> OFFENSE</div><label className="field-label" htmlFor="category">Crime category</label><select id="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option><option value="group:homicide">Homicide / Murder (related offenses)</option>{categories.map((name) => <option value={name} key={name}>{name}</option>)}</select><p className="field-note">The grouped option includes source labels containing homicide, murder, or manslaughter. Record details show the original offense.</p></section>
 
@@ -400,7 +405,7 @@ export default function Home() {
         {selectedArea && <div className="selected-card"><div className="selected-eyebrow">CJIC REPORTING AREA<button className="icon-button" aria-label="Close area details" title="Close area details" onClick={() => setSelectedAreaKey(null)}><X size={13} /></button></div><strong>{selectedArea.city}, {selectedArea.county}</strong><p>{sources.includes('cjic-crime') ? `${selectedArea.crime.toLocaleString()} crime rows` : 'Crime source not selected'} / {sources.includes('cjic-victim') ? `${selectedArea.victims.toLocaleString()} victim rows` : 'Victim source not selected'}</p><p>{selectedArea.geographyLabel}</p><p>{selectedArea.precision === 'county' ? `No verified municipal boundary. Original reporting labels: ${selectedArea.reportingLabels.join(', ')}. These rows do not contribute to municipal heat.` : `${densityLabel(reportingDensity(selectedArea, effectiveMetric)!)} ${effectiveMetric === 'combined' ? 'selected' : effectiveMetric === 'crime' ? 'crime' : 'victim'} rows per sq km / ${densityLabel(selectedArea.areaKm2)} sq km. Locations within the boundary are unknown.`}</p><dl className="record-fields">{Object.entries(selectedArea.races).map(([race, count]) => <div key={race}><dt>{race}</dt><dd>{count.toLocaleString()}</dd></div>)}</dl><p>{sources.includes('cjic-victim') ? 'Race counts represent matching victim rows.' : 'Race counts represent crime rows with linked victims; a row can have multiple victim races.'}</p><button className="compare-area-button" onClick={openComparison}>Compare this reporting area</button></div>}
         {selected && <div className="selected-card"><div className="selected-eyebrow">{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel} RECORD<button className="icon-button" aria-label="Close record details" title="Close record details" onClick={() => setSelectedId(null)}><X size={13} /></button></div><strong>{selected.description}</strong><p>{recordLocation(selected) || 'Location unavailable'} / {recordDate(selected)}</p>{isCJIC(selected.source) && <p>{selected.locationPrecision === 'county' ? 'County-only location.' : 'City / township reporting area.'} Exact incident coordinates are absent from the CSV.</p>}{selected.source === 'cjic-crime' && <p>Linked victim races: {selected.victimRaces?.join(', ') || 'No linked victim record'}</p>}<dl className="record-fields" aria-label="Record details">{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{recordFieldLabel(field)}</dt><dd>{value === '' || value === null ? <span className="missing-value">Not reported</span> : String(value)}</dd></div>)}</dl>{isCJIC(selected.source) && <a className="small-link" href={`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/michigan-cjic/${selected.source === 'cjic-crime' ? 'crime' : 'victim'}-live.csv`} download><Download size={13} />Original source CSV</a>}</div>}
         {selected?.source === 'news' && <div className="news-citations"><strong>Original reporting</strong><p>One case may have several articles. The map marker is approximate; see the location note above.</p>{selected.sourceArticles?.map((article) => <a href={article.url} key={article.url} target="_blank" rel="noreferrer">{article.outlet} report <ExternalLink size={12} /></a>)}</div>}
-        <RecordList incidents={incidents} selectedId={selectedId} onSelect={selectRecord} message={incidents.length ? undefined : loading ? 'Loading selected public records...' : !sources.length ? 'No data sources selected.' : hasRecentPeriod && hasCJIC ? 'CJIC has year-only dates. Select a year or all available years to see those records.' : races.includes('__none__') ? 'No races selected.' : 'No records match the selected filters.'} />
+        <RecordList incidents={incidents} selectedId={selectedId} onSelect={selectRecord} message={incidents.length ? undefined : loading ? 'Loading selected public records...' : !sources.length ? 'No data sources selected.' : hasRecentPeriod && hasCJIC ? 'CJIC has year-only dates. Select a year or all available years to see those records.' : sources.length === 1 && sources[0] === 'news' && newsFile?.cases.length ? `No reviewed news cases match this period. ${newsFile.cases.length.toLocaleString()} cases are available under All available years.` : races.includes('__none__') ? 'No races selected.' : 'No records match the selected filters.'} />
         {!loading && (remoteHasMore || localHasMore) && <button className="load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? 'Loading...' : <>Load more source records ({Math.max(0, total - loadedCount).toLocaleString()} not loaded) <ArrowDown size={14} /></>}</button>}
         </div>}
       </section></div>
