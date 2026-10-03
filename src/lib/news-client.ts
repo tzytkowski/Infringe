@@ -18,7 +18,16 @@ export type LocalNewsCase = {
   articles: { outlet: 'WXYZ' | 'WDIV'; url: string }[];
 };
 
-export type NewsFile = { updatedAt: string; cases: LocalNewsCase[] };
+export type LocalNewsArticle = {
+  id: string;
+  outlet: 'WXYZ' | 'WDIV';
+  url: string;
+  title: string;
+  category: string;
+  publishedAt: string;
+};
+
+export type NewsFile = { updatedAt: string; articleUpdatedAt: string; cases: LocalNewsCase[]; articles: LocalNewsArticle[] };
 
 function dateValue(date: string) {
   return dateOnlyValue(date);
@@ -40,13 +49,34 @@ export function validateNewsFile(value: unknown): NewsFile {
     }
     if (!Array.isArray(item.articles) || !item.articles.length || item.articles.some((article) => !['WXYZ', 'WDIV'].includes(article.outlet) || !/^https:\/\/(www\.)?(wxyz\.com|clickondetroit\.com)\//.test(article.url))) throw new Error(`Invalid article citation: ${item.id}`);
   }
-  return file as NewsFile;
+  return { ...(file as Omit<NewsFile, 'articles' | 'articleUpdatedAt'>), articles: [], articleUpdatedAt: file.updatedAt };
+}
+
+function validateNewsArticles(value: unknown) {
+  if (!value || typeof value !== 'object') throw new Error('News article file is invalid');
+  const file = value as { updatedAt?: unknown; articles?: unknown };
+  if (typeof file.updatedAt !== 'string' || !Array.isArray(file.articles)) throw new Error('News article file is invalid');
+  const seen = new Set<string>();
+  for (const article of file.articles as LocalNewsArticle[]) {
+    if (!article || typeof article.id !== 'string' || !/^[a-f0-9]{16}$/.test(article.id) || seen.has(article.id)) throw new Error('News article ID is invalid or duplicated');
+    seen.add(article.id);
+    if (!['WXYZ', 'WDIV'].includes(article.outlet) || typeof article.title !== 'string' || !article.title.trim() || typeof article.category !== 'string' || !article.category.trim()) throw new Error(`News article detail is invalid: ${article.id}`);
+    if (!/^https:\/\/(www\.)?(wxyz\.com|clickondetroit\.com)\//.test(article.url) || !Number.isFinite(Date.parse(article.publishedAt))) throw new Error(`News article citation is invalid: ${article.id}`);
+  }
+  return file as { updatedAt: string; articles: LocalNewsArticle[] };
 }
 
 export async function fetchNewsCases(signal: AbortSignal): Promise<NewsFile> {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/data/local-news/incidents.json`, { signal, cache: 'no-store' });
-  if (!response.ok) throw new Error(`Reviewed news cases returned ${response.status}`);
-  return validateNewsFile(await response.json());
+  const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
+  const [caseResponse, articleResponse] = await Promise.all([
+    fetch(`${base}/data/local-news/incidents.json`, { signal, cache: 'no-store' }),
+    fetch(`${base}/data/local-news/articles.json`, { signal, cache: 'no-store' }),
+  ]);
+  if (!caseResponse.ok) throw new Error(`Reviewed news cases returned ${caseResponse.status}`);
+  if (!articleResponse.ok) throw new Error(`Publisher news feed returned ${articleResponse.status}`);
+  const cases = validateNewsFile(await caseResponse.json());
+  const articles = validateNewsArticles(await articleResponse.json());
+  return { ...cases, articles: articles.articles, articleUpdatedAt: articles.updatedAt };
 }
 
 export function newsCaseToIncident(item: LocalNewsCase): Incident {
@@ -73,19 +103,63 @@ export function newsCaseToIncident(item: LocalNewsCase): Incident {
       'Review date': item.reviewedAt,
       'Article sources': item.articles.map((article) => article.outlet).join(', '),
     },
+    recordKind: 'reviewed-news-incident',
   };
+}
+
+function newsArticleToIncident(item: LocalNewsArticle): Incident {
+  return {
+    id: `news-article-${item.id}`,
+    source: 'news',
+    category: item.category,
+    description: item.title,
+    occurredAt: Date.parse(item.publishedAt),
+    neighborhood: null,
+    intersection: null,
+    precinct: null,
+    status: 'Publisher RSS article — incident details not individually reviewed',
+    longitude: null,
+    latitude: null,
+    sourceArticles: [{ outlet: item.outlet, url: item.url }],
+    fields: {
+      'Record type': 'Publisher RSS article',
+      'Date meaning': 'Article publication time; incident date not verified',
+      'Publication date': item.publishedAt,
+      'Article source': item.outlet,
+      'Review status': 'Article metadata only; incident details not individually reviewed',
+    },
+    recordKind: 'publisher-rss-article',
+  };
+}
+
+function timestampMatchesPeriod(value: string, period: string, now: number) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || timestamp > now) return false;
+  if (period === 'all') return true;
+  if (/^\d{4}$/.test(period)) return new Date(timestamp).getUTCFullYear() === Number(period);
+  const days = period === '24h' ? 1 : period === '7d' ? 7 : period === '30d' ? 30 : null;
+  return days !== null && timestamp >= now - days * 86_400_000;
+}
+
+function categoryMatches(category: string, description: string, selected: string) {
+  const standardized = standardCategoryName(selected);
+  if (selected === 'group:homicide') return isHomicideOffense(category) || isHomicideOffense(description);
+  if (standardized) return standardizeOffense(category, description) === standardized;
+  return !selected || category === selected;
 }
 
 export function filterNewsCases(file: NewsFile | null, period: string, category: string, races: string[], search: string, now = Date.now()): Incident[] {
   if (!file || races.length) return [];
   const term = search.trim().toLowerCase();
-  return file.cases.filter((item) => {
-    const standardized = standardCategoryName(category);
-    if (category === 'group:homicide' && !isHomicideOffense(item.category)) return false;
-    if (standardized && standardizeOffense(item.category, item.label) !== standardized) return false;
-    if (category && !standardized && category !== 'group:homicide' && item.category !== category) return false;
+  const cases = file.cases.filter((item) => {
+    if (!categoryMatches(item.category, item.label, category)) return false;
     if (!dateOnlyMatchesPeriod(item.incidentDate, period, now)) return false;
     if (term && ![item.label, item.city, item.county, item.location, ...item.articles.map((article) => article.outlet)].some((value) => value.toLowerCase().includes(term))) return false;
     return true;
   }).map(newsCaseToIncident);
+  const articles = file.articles.filter((item) => {
+    if (!categoryMatches(item.category, item.title, category) || !timestampMatchesPeriod(item.publishedAt, period, now)) return false;
+    return !term || [item.title, item.outlet, item.category].some((value) => value.toLowerCase().includes(term));
+  }).map(newsArticleToIncident);
+  return [...cases, ...articles];
 }

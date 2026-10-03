@@ -1,13 +1,77 @@
 {
-  "updatedAt": "2026-09-30T17:56:50.230Z",
+  "updatedAt": "2026-10-03T19:09:20.647Z",
   "leads": [
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/03/a-child-brought-a-loaded-gun-to-a-canton-daycare-center-now-the-parents-are-facing-charges",
+      "title": "A child brought a loaded gun to a Canton daycare center. Now the parents are facing charges",
+      "category": "Weapons offense",
+      "publishedAt": "2026-10-03T09:00:01.000Z",
+      "firstSeenAt": "2026-10-03T19:04:46.153Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-faces-14-felony-charges-including-murder-in-deadly-west-side-after-hours-party-shooting",
+      "title": "Detroit man faces 14 felony charges, including murder, in deadly west side after-hours party shooting",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T19:48:03.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/canton-wingstop-robbery-suspects-caught-after-gps-tether-surveillance-video-link-2-men-feds-say",
+      "title": "Canton Wingstop robbery suspects caught after GPS tether, surveillance video link 2 men, feds say",
+      "category": "Robbery / carjacking",
+      "publishedAt": "2026-10-02T19:36:53.000Z",
+      "firstSeenAt": "2026-10-03T19:03:14.382Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/lost-cell-phone-prompted-triple-fatal-mass-shooting-in-detroit-prosecutor-says",
+      "title": "Lost cell phone prompted triple fatal mass shooting in Detroit, prosecutor says",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T17:04:27.000Z",
+      "firstSeenAt": "2026-10-03T19:03:14.382Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-charged-with-murder-in-mass-shooting-that-left-3-dead-4-injured",
+      "title": "Detroit man charged with murder in mass shooting that left 3 dead, 4 injured",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T13:28:43.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/watch-prosecutors-announce-charges-in-triple-fatal-shooting-at-illegal-detroit-after-hours-party-spot",
+      "title": "Watch: Prosecutors announce charges in triple fatal shooting at illegal Detroit after-hours party spot",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T12:51:25.000Z",
+      "firstSeenAt": "2026-10-03T19:03:14.382Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-police-officer-and-wife-charged-after-toddler-brings-loaded-gun-to-canton-daycare",
+      "title": "Detroit police officer and wife charged after toddler brings loaded gun to Canton daycare",
+      "category": "Weapons offense",
+      "publishedAt": "2026-10-01T20:02:00.000Z",
+      "firstSeenAt": "2026-10-03T19:09:15.917Z",
+      "status": "new"
+    },
     {
       "outlet": "WDIV",
       "url": "https://www.clickondetroit.com/news/local/2026/09/29/her-death-looked-like-a-suicide-now-belleville-man-sentenced-to-prison-for-girlfriends-murder",
       "title": "Her death appeared to be suicide. Now Wayne County man sentenced to prison for girlfriend’s murder",
       "publishedAt": "2026-09-30T09:00:01.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
-      "status": "new"
+      "status": "new",
+      "category": "Homicide"
     },
     {
       "outlet": "WDIV",
@@ -16,7 +80,8 @@
       "publishedAt": "2026-09-29T23:17:25.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
       "status": "reviewed",
-      "caseId": "2026-09-26-mirhad-cehic-warren"
+      "caseId": "2026-09-26-mirhad-cehic-warren",
+      "category": "Homicide"
     },
     {
       "outlet": "WDIV",
@@ -25,7 +90,8 @@
       "publishedAt": "2026-09-29T22:51:21.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
       "status": "reviewed",
-      "caseId": "1981-06-12-schwartzkopf-kemp-warren"
+      "caseId": "1981-06-12-schwartzkopf-kemp-warren",
+      "category": "Homicide"
     },
     {
       "outlet": "WDIV",
@@ -34,7 +100,35 @@
       "publishedAt": "2026-09-29T21:24:51.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
       "status": "reviewed",
-      "caseId": "2026-09-27-prest-eaton-detroit"
+      "caseId": "2026-09-27-prest-eaton-detroit",
+      "category": "Homicide"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-police-arrest-suspect-in-mass-shooting-that-left-3-dead-4-injured",
+      "title": "Detroit police arrest suspect in mass shooting that left 3 dead, 4 injured",
+      "category": "Homicide",
+      "publishedAt": "2026-09-29T20:50:32.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/warren-drive-thru-owner-offers-1-000-reward-after-thieves-steal-safe-4-300-in-brazen-break-in",
+      "title": "Warren drive-thru owner offers $1,000 reward after thieves steal safe, $4,300 in brazen break-in",
+      "category": "Burglary / home invasion",
+      "publishedAt": "2026-09-29T20:31:18.000Z",
+      "firstSeenAt": "2026-10-03T19:03:11.318Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/toddler-found-with-loaded-gun-at-canton-daycare-parent-taken-into-custody",
+      "title": "Toddler found with loaded gun at Canton daycare; parent taken into custody",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-29T02:15:54.000Z",
+      "firstSeenAt": "2026-10-03T19:09:16.405Z",
+      "status": "new"
     },
     {
       "outlet": "WDIV",
@@ -43,7 +137,8 @@
       "publishedAt": "2026-09-28T22:55:06.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
       "status": "reviewed",
-      "caseId": "2026-09-27-prest-eaton-detroit"
+      "caseId": "2026-09-27-prest-eaton-detroit",
+      "category": "Homicide"
     },
     {
       "outlet": "WDIV",
@@ -52,16 +147,45 @@
       "publishedAt": "2026-09-28T22:14:44.000Z",
       "firstSeenAt": "2026-09-30T17:47:24.511Z",
       "status": "reviewed",
-      "caseId": "2026-09-26-mirhad-cehic-warren"
+      "caseId": "2026-09-26-mirhad-cehic-warren",
+      "category": "Homicide"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/police-say-detroit-mass-shooting-that-left-3-dead-happened-at-unlicensed-after-hours-strip-club",
+      "title": "Police say Detroit mass shooting that left 3 dead happened at unlicensed after-hours strip club",
+      "category": "Homicide",
+      "publishedAt": "2026-09-28T21:32:42.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
     },
     {
       "outlet": "WXYZ",
       "url": "https://www.wxyz.com/news/region/macomb-county/father-of-five-run-over-killed-at-warren-flea-market-after-dispute-escalates",
       "title": "Father of five run over, killed at Warren flea market after dispute escalates",
+      "category": "Homicide",
       "publishedAt": "2026-09-28T19:18:32.000Z",
       "firstSeenAt": "2026-09-30T17:47:21.622Z",
       "status": "reviewed",
       "caseId": "2026-09-26-mirhad-cehic-warren"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/detroit/3-dead-1-injured-after-shooting-in-detroit-police-say",
+      "title": "3 dead, 4 others injured after shooting at after-hours spot in Detroit, police say",
+      "category": "Homicide",
+      "publishedAt": "2026-09-27T13:56:08.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-charged-with-armed-robbery-after-targeting-dancer-police-investigate-possible-links-to-more-cases",
+      "title": "Detroit man charged with armed robbery after targeting dancer, police investigate possible links to more cases",
+      "category": "Robbery / carjacking",
+      "publishedAt": "2026-09-25T22:32:17.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.358Z",
+      "status": "new"
     },
     {
       "outlet": "WXYZ",
@@ -70,7 +194,17 @@
       "publishedAt": "2026-09-24T21:35:26.000Z",
       "firstSeenAt": "2026-09-30T17:47:19.858Z",
       "status": "reviewed",
-      "caseId": "2026-09-20-jaquoya-wix-detroit"
+      "caseId": "2026-09-20-jaquoya-wix-detroit",
+      "category": "Homicide"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/pontiac-forms-its-first-gun-violence-prevention-task-force-after-recent-shootings",
+      "title": "Pontiac forms its first gun violence prevention task force after recent shootings",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-24T20:38:53.000Z",
+      "firstSeenAt": "2026-10-03T19:04:45.656Z",
+      "status": "new"
     },
     {
       "outlet": "WXYZ",
@@ -79,7 +213,8 @@
       "publishedAt": "2026-09-23T23:19:31.000Z",
       "firstSeenAt": "2026-09-30T17:47:19.858Z",
       "status": "reviewed",
-      "caseId": "2026-09-20-jaquoya-wix-detroit"
+      "caseId": "2026-09-20-jaquoya-wix-detroit",
+      "category": "Homicide"
     },
     {
       "outlet": "WXYZ",
@@ -88,12 +223,23 @@
       "publishedAt": "2026-09-23T22:15:48.000Z",
       "firstSeenAt": "2026-09-30T17:47:19.858Z",
       "status": "reviewed",
-      "caseId": "2026-09-20-jaquoya-wix-detroit"
+      "caseId": "2026-09-20-jaquoya-wix-detroit",
+      "category": "Homicide"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/oakland-county/a-timeline-of-the-oakland-county-child-killer-investigation",
+      "title": "A timeline of the Oakland County Child Killer investigation",
+      "category": "Homicide",
+      "publishedAt": "2026-09-22T11:56:44.000Z",
+      "firstSeenAt": "2026-10-03T19:09:17.236Z",
+      "status": "new"
     },
     {
       "outlet": "WXYZ",
       "url": "https://www.wxyz.com/news/3-years-later-grieving-mother-demands-justice-in-unsolved-murder-of-ecorse-athlete",
       "title": "3 years later, grieving mother demands justice in unsolved murder of Ecorse athlete",
+      "category": "Homicide",
       "publishedAt": "2026-09-22T00:01:14.000Z",
       "firstSeenAt": "2026-09-30T17:47:20.854Z",
       "status": "new"
@@ -102,6 +248,7 @@
       "outlet": "WXYZ",
       "url": "https://www.wxyz.com/news/region/oakland-county/man-killed-another-in-custody-after-domestic-related-shooting-in-pontiac",
       "title": "Man killed, another in custody after domestic-related shooting in Pontiac",
+      "category": "Homicide",
       "publishedAt": "2026-09-20T16:56:33.000Z",
       "firstSeenAt": "2026-09-30T17:47:21.286Z",
       "status": "new"
@@ -113,7 +260,26 @@
       "publishedAt": "2026-09-18T18:09:30.000Z",
       "firstSeenAt": "2026-09-30T17:47:21.286Z",
       "status": "dismissed",
-      "reviewNote": "Reported accidental shooting, not a murder case."
+      "reviewNote": "Reported accidental shooting, not a murder case.",
+      "category": "Homicide"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/metro-detroit-man-pulls-world-war-ii-era-machine-gun-from-clinton-river",
+      "title": "Metro Detroit man pulls World War II-era machine gun from Clinton River",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-14T22:29:33.000Z",
+      "firstSeenAt": "2026-10-03T19:09:17.530Z",
+      "status": "new"
+    },
+    {
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/wayne-county/2-in-custody-after-neighbors-dispute-shooting-kills-1-during-party-in-taylor",
+      "title": "2 in custody after neighbors dispute, shooting kills 1 during party in Taylor",
+      "category": "Homicide",
+      "publishedAt": "2026-09-14T19:14:53.000Z",
+      "firstSeenAt": "2026-10-03T19:03:10.708Z",
+      "status": "new"
     }
   ]
 }

@@ -1,0 +1,165 @@
+{
+  "updatedAt": "2026-10-03T19:09:20.647Z",
+  "articles": [
+    {
+      "id": "5c6994ce783f0a51",
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/03/a-child-brought-a-loaded-gun-to-a-canton-daycare-center-now-the-parents-are-facing-charges",
+      "title": "A child brought a loaded gun to a Canton daycare center. Now the parents are facing charges",
+      "category": "Weapons offense",
+      "publishedAt": "2026-10-03T09:00:01.000Z"
+    },
+    {
+      "id": "6d2238df33a386ea",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-faces-14-felony-charges-including-murder-in-deadly-west-side-after-hours-party-shooting",
+      "title": "Detroit man faces 14 felony charges, including murder, in deadly west side after-hours party shooting",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T19:48:03.000Z"
+    },
+    {
+      "id": "5f118d22b035e1b4",
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/canton-wingstop-robbery-suspects-caught-after-gps-tether-surveillance-video-link-2-men-feds-say",
+      "title": "Canton Wingstop robbery suspects caught after GPS tether, surveillance video link 2 men, feds say",
+      "category": "Robbery / carjacking",
+      "publishedAt": "2026-10-02T19:36:53.000Z"
+    },
+    {
+      "id": "57e84cb347a1a595",
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/lost-cell-phone-prompted-triple-fatal-mass-shooting-in-detroit-prosecutor-says",
+      "title": "Lost cell phone prompted triple fatal mass shooting in Detroit, prosecutor says",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T17:04:27.000Z"
+    },
+    {
+      "id": "d6ae4362bf59bbb6",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-charged-with-murder-in-mass-shooting-that-left-3-dead-4-injured",
+      "title": "Detroit man charged with murder in mass shooting that left 3 dead, 4 injured",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T13:28:43.000Z"
+    },
+    {
+      "id": "a8aa69fb7e1c03c4",
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/10/02/watch-prosecutors-announce-charges-in-triple-fatal-shooting-at-illegal-detroit-after-hours-party-spot",
+      "title": "Watch: Prosecutors announce charges in triple fatal shooting at illegal Detroit after-hours party spot",
+      "category": "Homicide",
+      "publishedAt": "2026-10-02T12:51:25.000Z"
+    },
+    {
+      "id": "21f6191d57fc7510",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-police-officer-and-wife-charged-after-toddler-brings-loaded-gun-to-canton-daycare",
+      "title": "Detroit police officer and wife charged after toddler brings loaded gun to Canton daycare",
+      "category": "Weapons offense",
+      "publishedAt": "2026-10-01T20:02:00.000Z"
+    },
+    {
+      "id": "ea3908451f3ba7a2",
+      "outlet": "WDIV",
+      "url": "https://www.clickondetroit.com/news/local/2026/09/29/her-death-looked-like-a-suicide-now-belleville-man-sentenced-to-prison-for-girlfriends-murder",
+      "title": "Her death appeared to be suicide. Now Wayne County man sentenced to prison for girlfriend’s murder",
+      "category": "Homicide",
+      "publishedAt": "2026-09-30T09:00:01.000Z"
+    },
+    {
+      "id": "d58b8cb1ba9500d4",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-police-arrest-suspect-in-mass-shooting-that-left-3-dead-4-injured",
+      "title": "Detroit police arrest suspect in mass shooting that left 3 dead, 4 injured",
+      "category": "Homicide",
+      "publishedAt": "2026-09-29T20:50:32.000Z"
+    },
+    {
+      "id": "dfab16c0a877ae07",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/warren-drive-thru-owner-offers-1-000-reward-after-thieves-steal-safe-4-300-in-brazen-break-in",
+      "title": "Warren drive-thru owner offers $1,000 reward after thieves steal safe, $4,300 in brazen break-in",
+      "category": "Burglary / home invasion",
+      "publishedAt": "2026-09-29T20:31:18.000Z"
+    },
+    {
+      "id": "790dd2cb7a5f6d75",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/toddler-found-with-loaded-gun-at-canton-daycare-parent-taken-into-custody",
+      "title": "Toddler found with loaded gun at Canton daycare; parent taken into custody",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-29T02:15:54.000Z"
+    },
+    {
+      "id": "8a9ed5c2bbe8c0f6",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/police-say-detroit-mass-shooting-that-left-3-dead-happened-at-unlicensed-after-hours-strip-club",
+      "title": "Police say Detroit mass shooting that left 3 dead happened at unlicensed after-hours strip club",
+      "category": "Homicide",
+      "publishedAt": "2026-09-28T21:32:42.000Z"
+    },
+    {
+      "id": "82dca587bd8cd5c6",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/detroit/3-dead-1-injured-after-shooting-in-detroit-police-say",
+      "title": "3 dead, 4 others injured after shooting at after-hours spot in Detroit, police say",
+      "category": "Homicide",
+      "publishedAt": "2026-09-27T13:56:08.000Z"
+    },
+    {
+      "id": "4134c8577a8d0b77",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/detroit-man-charged-with-armed-robbery-after-targeting-dancer-police-investigate-possible-links-to-more-cases",
+      "title": "Detroit man charged with armed robbery after targeting dancer, police investigate possible links to more cases",
+      "category": "Robbery / carjacking",
+      "publishedAt": "2026-09-25T22:32:17.000Z"
+    },
+    {
+      "id": "941087490fd07c77",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/pontiac-forms-its-first-gun-violence-prevention-task-force-after-recent-shootings",
+      "title": "Pontiac forms its first gun violence prevention task force after recent shootings",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-24T20:38:53.000Z"
+    },
+    {
+      "id": "91dfb1c5f0150b07",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/oakland-county/a-timeline-of-the-oakland-county-child-killer-investigation",
+      "title": "A timeline of the Oakland County Child Killer investigation",
+      "category": "Homicide",
+      "publishedAt": "2026-09-22T11:56:44.000Z"
+    },
+    {
+      "id": "df0c76fa2c441114",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/3-years-later-grieving-mother-demands-justice-in-unsolved-murder-of-ecorse-athlete",
+      "title": "3 years later, grieving mother demands justice in unsolved murder of Ecorse athlete",
+      "category": "Homicide",
+      "publishedAt": "2026-09-22T00:01:14.000Z"
+    },
+    {
+      "id": "b806c7c517889243",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/oakland-county/man-killed-another-in-custody-after-domestic-related-shooting-in-pontiac",
+      "title": "Man killed, another in custody after domestic-related shooting in Pontiac",
+      "category": "Homicide",
+      "publishedAt": "2026-09-20T16:56:33.000Z"
+    },
+    {
+      "id": "0846c6f69b92f6f4",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/metro-detroit-man-pulls-world-war-ii-era-machine-gun-from-clinton-river",
+      "title": "Metro Detroit man pulls World War II-era machine gun from Clinton River",
+      "category": "Weapons offense",
+      "publishedAt": "2026-09-14T22:29:33.000Z"
+    },
+    {
+      "id": "35a7de5566f87d30",
+      "outlet": "WXYZ",
+      "url": "https://www.wxyz.com/news/region/wayne-county/2-in-custody-after-neighbors-dispute-shooting-kills-1-during-party-in-taylor",
+      "title": "2 in custody after neighbors dispute, shooting kills 1 during party in Taylor",
+      "category": "Homicide",
+      "publishedAt": "2026-09-14T19:14:53.000Z"
+    }
+  ]
+}

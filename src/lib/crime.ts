@@ -10,7 +10,7 @@ export type RemoteSource = 'detroit' | 'clemis';
 export type CJICSource = 'cjic-crime' | 'cjic-victim';
 export type CrimeSource = RemoteSource | CJICSource | 'news';
 export const DATA_SOURCES: { id: CrimeSource; label: string; shortLabel: string; coverage: string; color: string; url: string }[] = [
-  { id: 'news', label: 'Local news reports', shortLabel: 'NEWS', coverage: 'WXYZ + WDIV / reviewed citations', color: '#ed8f77', url: 'https://www.wxyz.com/about-us/rss' },
+  { id: 'news', label: 'Local news reports', shortLabel: 'NEWS', coverage: 'WXYZ + WDIV / reviewed incidents + RSS articles', color: '#ed8f77', url: 'https://www.wxyz.com/about-us/rss' },
   { id: 'clemis', label: 'CLEMIS offenses', shortLabel: 'CLEMIS', coverage: 'Oakland + Macomb / 2026 onward', color: '#f4ba63', url: CLEMIS_SOURCE },
   { id: 'detroit', label: 'Detroit Police', shortLabel: 'DPD', coverage: 'Detroit / December 2016 onward', color: '#fb6b6b', url: DETROIT_SOURCE },
   { id: 'cjic-crime', label: 'CJIC crime', shortLabel: 'CJIC CRIME', coverage: 'Oakland + Macomb / 2021-2026', color: '#79cfad', url: CJIC_SOURCE },
@@ -58,6 +58,7 @@ export type Incident = {
   sourceArticles?: { outlet: string; url: string }[];
   standardOffense?: string;
   relatedIncidentIds?: string[];
+  recordKind?: 'reviewed-news-incident' | 'publisher-rss-article';
   fields: Record<string, string | number | null>;
 };
 
@@ -138,7 +139,8 @@ export function isHomicideOffense(value: string) {
   return /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(value);
 }
 
-export function recordUnit(source: CrimeSource) {
+export function recordUnit(source: CrimeSource, recordKind?: Incident['recordKind']) {
+  if (source === 'news' && recordKind === 'publisher-rss-article') return { singular: 'publisher article', plural: 'publisher articles' };
   if (source === 'news') return { singular: 'reviewed incident', plural: 'reviewed incidents' };
   if (source === 'cjic-victim') return { singular: 'victim row', plural: 'victim rows' };
   return { singular: 'offense row', plural: 'offense rows' };
