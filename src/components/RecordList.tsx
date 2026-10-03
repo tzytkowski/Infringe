@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, MapPin } from 'lucide-react';
-import { DATA_SOURCES, GROUP_COLORS, crimeGroup, recordDate, recordUnit, type Incident } from '@/lib/crime';
+import { DATA_SOURCES, recordDate, recordUnit, type Incident } from '@/lib/crime';
+import { offenseColor } from '@/lib/offense-taxonomy.mjs';
 
 const rowHeight = 126;
 export default function RecordList({ incidents, selectedId, onSelect, message }: {
@@ -28,9 +29,10 @@ export default function RecordList({ incidents, selectedId, onSelect, message }:
     <div className="virtual-records" style={{ height: incidents.length * rowHeight }}>
       {incidents.slice(start, end).map((item, index) => {
         const source = DATA_SOURCES.find((entry) => entry.id === item.source)!;
+        const categoryColor = offenseColor(item.category, item.description, item.standardOffense);
         return <button className={`record ${selectedId === item.id ? 'active' : ''}`} style={{ top: (start + index) * rowHeight, height: rowHeight }} key={item.id} onClick={() => onSelect(item.id)}>
-          <span className="record-accent" style={{ background: GROUP_COLORS[crimeGroup(item.category)] }} />
-          <span className="record-body"><span className="record-source" style={{ color: source.color }}>{source.shortLabel} · {recordUnit(item.source).singular.toUpperCase()}{item.standardOffense ? ` · ${item.standardOffense.toUpperCase()}` : ''}{item.relatedIncidentIds?.length ? ` · ${item.relatedIncidentIds.length} LINKED` : ''}{item.race ? ` / ${item.race}` : ''}</span>
+          <span className="record-accent" style={{ background: categoryColor, color: categoryColor }} />
+          <span className="record-body"><span className="record-source" style={{ color: categoryColor }}>{source.shortLabel} · {recordUnit(item.source).singular.toUpperCase()}{item.standardOffense ? ` · ${item.standardOffense.toUpperCase()}` : ''}{item.relatedIncidentIds?.length ? ` · ${item.relatedIncidentIds.length} LINKED` : ''}{item.race ? ` / ${item.race}` : ''}</span>
             <strong>{item.description}</strong><span className="record-meta"><MapPin size={11} />{item.source === 'news' ? item.intersection : item.neighborhood || item.intersection || 'Location unavailable'}{item.county ? `, ${item.county}` : ''}</span>
             <span className="record-meta">{recordDate(item)}</span></span><ArrowUpRight size={14} className="record-arrow" />
         </button>;

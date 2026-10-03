@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { enrichAndLinkIncidents } from '../src/lib/incident-links.mjs';
-import { standardCategoryTerms, standardizeOffense } from '../src/lib/offense-taxonomy.mjs';
+import { offenseColor, offenseSeverity, standardCategoryTerms, standardizeOffense } from '../src/lib/offense-taxonomy.mjs';
 import { parseViewParams, serializeViewParams } from '../src/lib/view-state.mjs';
 
 test('standard offense taxonomy preserves useful cross-source distinctions', () => {
@@ -9,6 +9,15 @@ test('standard offense taxonomy preserves useful cross-source distinctions', () 
   assert.equal(standardizeOffense('Motor vehicle theft'), 'Motor vehicle theft');
   assert.equal(standardizeOffense('Aggravated assault with a firearm'), 'Aggravated assault');
   assert.deepEqual(standardCategoryTerms('standard:Homicide'), ['HOMICIDE', 'MURDER', 'MANSLAUGHTER']);
+});
+
+test('offense colors use a continuous severity scale with red reserved for homicide', () => {
+  assert.equal(offenseColor('HOMICIDE', 'Murder / non-negligent manslaughter'), '#e5484d');
+  assert.ok(offenseSeverity('ROBBERY') > offenseSeverity('LARCENY'));
+  assert.ok(offenseSeverity('SEXUAL ASSAULT') > offenseSeverity('AGGRAVATED ASSAULT'));
+  assert.notEqual(offenseColor('ROBBERY'), offenseColor('AGGRAVATED ASSAULT'));
+  assert.notEqual(offenseColor('LARCENY'), offenseColor('FRAUD'));
+  assert.notEqual(offenseColor('SEXUAL ASSAULT'), '#e5484d');
 });
 
 test('news and agency entries link only with matching date and location evidence', () => {
