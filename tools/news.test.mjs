@@ -42,11 +42,20 @@ test('reviewed cases have distinct IDs, geographic notes, and direct publisher c
     assert.match(item.incidentDate, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(item.category, 'Homicide / Murder');
     assert.ok(item.victims > 0 && Number.isInteger(item.victims));
-    assert.ok(item.locationNote.includes('Marker'));
-    assert.ok(item.longitude > -85 && item.longitude < -81 && item.latitude > 41 && item.latitude < 44);
-    assert.deepEqual(new Set(item.articles.map((article) => article.outlet)), new Set(['WXYZ', 'WDIV']));
+    assert.ok(item.locationNote.length > 20);
+    if (item.longitude === null || item.latitude === null) {
+      assert.equal(item.longitude, null);
+      assert.equal(item.latitude, null);
+      assert.match(item.locationNote, /list-only/i);
+    } else {
+      assert.ok(item.longitude > -85 && item.longitude < -81 && item.latitude > 41 && item.latitude < 44);
+    }
+    assert.ok(item.articles.length > 0);
     for (const article of item.articles) assert.match(article.url, /^https:\/\/www\.(wxyz\.com|clickondetroit\.com)\//);
   }
+  assert.deepEqual([...new Set(file.cases.map((item) => Number(item.incidentDate.slice(0, 4))))].sort((a, b) => a - b), [
+    1981, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026,
+  ]);
 });
 
 test('date-only cases match rolling windows when their calendar day overlaps', () => {

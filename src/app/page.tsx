@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, ArrowDown, ArrowUpRight, Crosshair, Database, Download, ExternalLink, Filter, Info, Maximize2, Radio, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import { CJIC_SOURCE, CLEMIS_SOURCE, DATA_SOURCES, crimeGroup, isCJIC, isHomicideOffense, isRemoteSource, recordDate, type CJICManifest, type CJICMetric, type CJICResponse, type ComparisonMap, type CrimeSource, type IncidentResponse, type RegionalFocus, type RemoteSource } from '@/lib/crime';
 import { recordLocation, recordMatchesValue, recordValues } from '@/lib/record-filter';
-import { fetchCategories, fetchIncidents } from '@/lib/arcgis-client';
+import { fetchCategories, fetchIncidents, fetchIncidentYears } from '@/lib/arcgis-client';
 import { fetchCJIC, fetchCJICManifest } from '@/lib/cjic-client';
 import RecordList from '@/components/RecordList';
 import { densityScaleMidpoint, reportingDensity, reportingDensityMaximum } from '@/lib/map-density';
@@ -56,9 +56,10 @@ function SelectAll({ checked, mixed, onChange, label }: { checked: boolean; mixe
 export default function Home() {
   const [sources, setSources] = useState<CrimeSource[]>(['clemis']);
   const [regionalFocus, setRegionalFocus] = useState<RegionalFocus>('both');
-  const [period, setPeriod] = useState('24h');
+  const [period, setPeriod] = useState('all');
   const [category, setCategory] = useState('');
   const [remoteCategories, setRemoteCategories] = useState<string[]>([]);
+  const [remoteYears, setRemoteYears] = useState<number[]>([]);
   const [races, setRaces] = useState<string[]>([]);
   const [manifest, setManifest] = useState<CJICManifest | null>(null);
   const [manifestError, setManifestError] = useState<string | null>(null);
@@ -113,9 +114,13 @@ export default function Home() {
   useEffect(() => {
     const controller = new AbortController();
     setRemoteCategories([]);
+    setRemoteYears([]);
     const selected = sources.filter(isRemoteSource);
     Promise.allSettled(selected.map((source) => fetchCategories(source, controller.signal))).then((results) => {
       if (!controller.signal.aborted) setRemoteCategories([...new Set(results.flatMap((result) => result.status === 'fulfilled' ? result.value : []))].sort());
+    });
+    Promise.allSettled(selected.map((source) => fetchIncidentYears(source, controller.signal))).then((results) => {
+      if (!controller.signal.aborted) setRemoteYears([...new Set(results.flatMap((result) => result.status === 'fulfilled' ? result.value : []))].sort((a, b) => b - a));
     });
     return () => controller.abort();
   }, [sourceKey]);
@@ -189,9 +194,10 @@ export default function Home() {
   ])].sort(), [remoteCategories, sourceKey, manifest, newsFile]);
   const years = useMemo(() => [...new Set([
     ...agencyYears,
+    ...remoteYears,
     ...(newsFile?.cases.map((item) => Number(item.incidentDate.slice(0, 4))) || []),
     ...Object.values(manifest?.sources || {}).flatMap((source) => source.chunks.map((chunk) => chunk.year)),
-  ])].filter((year) => Number.isInteger(year) && year <= currentYear).sort((a, b) => b - a), [newsFile, manifest]);
+  ])].filter((year) => Number.isInteger(year) && year <= currentYear).sort((a, b) => b - a), [remoteYears, newsFile, manifest]);
   const remoteIncidents = useMemo(() => Object.values(remote).flatMap((state) => state?.data?.incidents || []), [remote]);
   const visibleRemote = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
@@ -301,13 +307,10 @@ export default function Home() {
     setCategory('');
     if (next.length === 1 && next[0] === 'detroit') setRegionalFocus('both');
     if (!next.some(isCJIC)) setRaces([]);
-    if (next.length === 1 && next[0] === 'news' && period === '24h') {
+    if (!sources.includes('news') && next.includes('news') && period === '24h') {
       setPeriod('all');
-    } else if (!next.some(isCJIC) && next.length > 0 && !next.includes('news')) {
-      setPeriod('24h');
     } else if (next.some(isCJIC) && ['24h', '7d', '30d'].includes(period)) {
-      const availableYears = next.filter(isCJIC).flatMap((source) => manifest?.sources[source].chunks.map((chunk) => chunk.year) || []);
-      setPeriod(availableYears.length ? String(Math.max(...availableYears)) : 'all');
+      setPeriod('all');
     }
   }
   function toggleSource(source: CrimeSource) {
@@ -356,7 +359,7 @@ export default function Home() {
 
       <section className="filter-section"><div className="section-label"><span>02</span> TIME PERIOD</div><label className="field-label" htmlFor="period">Reporting period</label><select id="period" value={period} onChange={(event) => setPeriod(event.target.value)}>
         <option value="all">All available years</option><option value="24h" disabled={hasCJIC}>Past 24 hours</option><option value="7d" disabled={hasCJIC}>Past 7 days</option><option value="30d" disabled={hasCJIC}>Past 30 days</option><optgroup label="By year">{years.map((year) => <option value={year} key={year}>{year}</option>)}</optgroup>
-      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{!hasCJIC && <p className="field-note">CLEMIS regional history starts in 2026; Detroit history starts in December 2016.</p>}{sources.includes('news') && <p className="field-note">News filters cover every available year. Cases have date-only precision, so the past-24-hours view includes any reported day that overlaps that rolling window. The reviewed archive currently contains {newsFile?.cases.length.toLocaleString() || 0} cases; RSS does not provide older history automatically.</p>}</section>
+      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{!hasCJIC && <p className="field-note">CLEMIS regional history starts in 2026. Detroit reporting is complete from December 2016 onward; a small number of older occurrence dates remain available because they were entered into the current RMS data later.</p>}{sources.includes('news') && <p className="field-note">News filters cover every reviewed year, including historical backfill. Cases have date-only precision, so the past-24-hours view includes any reported day that overlaps that rolling window. The citation archive currently contains {newsFile?.cases.length.toLocaleString() || 0} reviewed cases and is not a complete crime count.</p>}</section>
 
       <section className="filter-section"><div className="section-label"><span>03</span> OFFENSE</div><label className="field-label" htmlFor="category">Crime category</label><select id="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option><option value="group:homicide">Homicide / Murder (related offenses)</option>{categories.map((name) => <option value={name} key={name}>{name}</option>)}</select><p className="field-note">The grouped option includes source labels containing homicide, murder, or manslaughter. Record details show the original offense.</p></section>
 

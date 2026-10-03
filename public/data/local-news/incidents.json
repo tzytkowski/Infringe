@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-30",
+  "updatedAt": "2026-10-03",
   "cases": [
     {
       "id": "2026-09-27-prest-eaton-detroit",
@@ -53,6 +53,193 @@
       "articles": [
         { "outlet": "WXYZ", "url": "https://www.wxyz.com/news/vigil-held-for-jaquoya-wix-mother-fatally-stabbed-in-random-attack-behind-detroit-chipotle" },
         { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2026/09/21/woman-stabbed-to-death-while-on-lunch-break-in-downtown-detroit-was-attacked-at-random-family-says/" }
+      ]
+    },
+    {
+      "id": "2025-05-06-pinewood-detroit",
+      "incidentDate": "2025-05-06",
+      "category": "Homicide / Murder",
+      "label": "Woman killed and man injured in a shooting on Pinewood Street",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Pinewood Street near Seven Mile Road and Schoenherr Road",
+      "locationNote": "List-only historical record. The report identifies Pinewood Street near Seven Mile and Schoenherr, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2025/05/06/woman-killed-man-injured-after-shooting-on-detroits-east-side/" }
+      ]
+    },
+    {
+      "id": "2024-11-07-seward-second-detroit",
+      "incidentDate": "2024-11-07",
+      "category": "Homicide / Murder",
+      "label": "Fourteen-year-old boy fatally shot after an argument between children",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Seward Street and Second Avenue",
+      "locationNote": "List-only historical record. The report places the shooting in the area of Seward Street and Second Avenue; the victim died from his injuries on November 11.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2024/11/13/detroit-teen-charged-after-injuring-mother-killing-14-year-old-boy-in-shooting-officials-say/" }
+      ]
+    },
+    {
+      "id": "2023-06-18-clay-street-detroit",
+      "incidentDate": "2023-06-18",
+      "category": "Homicide / Murder",
+      "label": "Twenty-nine-year-old man killed in a shooting on Clay Street",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "1600 block of Clay Street",
+      "locationNote": "List-only historical record. The report identifies the 1600 block of Clay Street, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2023/06/28/detroit-police-search-for-man-in-murder-of-29-year-old/" }
+      ]
+    },
+    {
+      "id": "2022-12-31-hawthorn-suites-detroit",
+      "incidentDate": "2022-12-31",
+      "category": "Homicide / Murder",
+      "label": "Fifteen-year-old boy killed at a hotel party",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Hawthorn Suites off the Southfield Freeway",
+      "locationNote": "List-only historical record. The report identifies a hotel off the Southfield Freeway near the Detroit-Dearborn border, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2022/12/31/15-year-old-shot-killed-at-teen-hotel-party-in-detroit/" }
+      ]
+    },
+    {
+      "id": "2021-04-23-parkside-detroit",
+      "incidentDate": "2021-04-23",
+      "category": "Homicide / Murder",
+      "label": "Thirty-one-year-old man killed in the backyard of a Parkside Street home",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "15300 block of Parkside Street",
+      "locationNote": "List-only historical record. The report identifies the 15300 block of Parkside Street, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2021/04/24/man-31-shot-to-death-in-backyard-of-detroit-home-police-say/" }
+      ]
+    },
+    {
+      "id": "2020-05-29-congress-randolph-detroit",
+      "incidentDate": "2020-05-29",
+      "category": "Homicide / Murder",
+      "label": "Twenty-one-year-old man killed during protests in downtown Detroit",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Congress Street and Randolph Street",
+      "locationNote": "List-only historical record. The report places the shooting in the area of Congress and Randolph, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2020/05/30/19-year-old-man-shot-killed-during-protests-in-downtown-detroit/" }
+      ]
+    },
+    {
+      "id": "2019-12-19-kentucky-detroit",
+      "incidentDate": "2019-12-19",
+      "category": "Homicide / Murder",
+      "label": "Twenty-one-year-old man killed inside a parked U-Haul",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "8300 block of Kentucky Street",
+      "locationNote": "List-only historical record. The report identifies the 8300 block of Kentucky Street, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2019/12/19/21-year-old-man-killed-inside-parked-u-haul-on-detroits-west-side-police-say/" }
+      ]
+    },
+    {
+      "id": "2018-11-13-andover-detroit",
+      "incidentDate": "2018-11-13",
+      "category": "Homicide / Murder",
+      "label": "Artinique Mapp and Kendal O'Neal killed in an east-side shooting",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "19400 block of Andover Street",
+      "locationNote": "List-only historical record. The report identifies the 19400 block of Andover Street, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 2,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/2018/11/13/young-man-woman-killed-in-shooting-on-detroits-east-side/" }
+      ]
+    },
+    {
+      "id": "2017-09-02-ward-detroit",
+      "incidentDate": "2017-09-02",
+      "category": "Homicide / Murder",
+      "label": "Forty-six-year-old man killed by his teenage stepson",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "16800 block of Ward Avenue",
+      "locationNote": "List-only historical record. The report identifies the 16800 block of Ward Avenue near McNichols Road and the Lodge Freeway, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/2017/09/03/man-shot-killed-by-teenage-stepson-on-detroits-west-side-police-say/" }
+      ]
+    },
+    {
+      "id": "2016-10-18-van-dyke-charlevoix-detroit",
+      "incidentDate": "2016-10-18",
+      "category": "Homicide / Murder",
+      "label": "Thirty-six-year-old man killed outside a party store",
+      "city": "Detroit",
+      "county": "Wayne",
+      "location": "Van Dyke Avenue and Charlevoix Street",
+      "locationNote": "List-only historical record. The report places the shooting outside a store at Van Dyke and Charlevoix, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 1,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/2016/10/19/man-shot-killed-by-2-men-outside-party-store-in-detroit/" }
+      ]
+    },
+    {
+      "id": "1981-06-12-schwartzkopf-kemp-warren",
+      "incidentDate": "1981-06-12",
+      "category": "Homicide / Murder",
+      "label": "Lisa Schwartzkopf and Cheryl Kemp killed in an unsolved Warren double homicide",
+      "city": "Warren",
+      "county": "Macomb",
+      "location": "Cyman Avenue south of Nine Mile Road",
+      "locationNote": "List-only historical record. The report identifies a home on Cyman south of Nine Mile, but this review did not assign an inferred map coordinate.",
+      "longitude": null,
+      "latitude": null,
+      "victims": 2,
+      "reviewedAt": "2026-10-03",
+      "articles": [
+        { "outlet": "WDIV", "url": "https://www.clickondetroit.com/news/local/2026/09/29/warren-double-homicide-from-1981-reopened-but-evidence-was-destroyed/" }
       ]
     }
   ]

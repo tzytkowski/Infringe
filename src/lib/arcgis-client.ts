@@ -55,6 +55,21 @@ export async function fetchCategories(source: RemoteSource, signal: AbortSignal)
     .map((value) => value.trim()))].sort();
 }
 
+export async function fetchIncidentYears(source: RemoteSource, signal: AbortSignal): Promise<number[]> {
+  if (source === 'clemis') return [new Date().getUTCFullYear()];
+  const field = 'incident_year';
+  const params = baseQuery(source, `${field} >= 1900`);
+  params.set('outFields', field);
+  params.set('returnDistinctValues', 'true');
+  params.set('returnGeometry', 'false');
+  params.set('orderByFields', `${field} DESC`);
+  params.set('resultRecordCount', '2000');
+  const data = await query(source, params, signal);
+  return [...new Set((data.features ?? [])
+    .map((feature) => Number(feature.attributes?.[field]))
+    .filter((value) => Number.isInteger(value) && value >= 1900))].sort((a, b) => b - a);
+}
+
 export async function fetchIncidents(source: RemoteSource, period: string, category: string, offset: number, signal: AbortSignal): Promise<IncidentResponse> {
   const currentYear = new Date().getUTCFullYear();
   const field = source === 'clemis' ? 'FROM_DATE' : 'incident_occurred_at';
@@ -64,7 +79,7 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
   else if (period === '7d') where = dateWhere(7, field);
   else if (period === '30d') where = dateWhere(30, field);
   else if (/^\d{4}$/.test(period) && Number(period) >= 1900 && Number(period) <= currentYear) {
-    if ((source === 'clemis' && Number(period) < 2026) || (source === 'detroit' && Number(period) < 2016)) {
+    if (source === 'clemis' && Number(period) < 2026) {
       return { incidents: [], total: 0, offset, limit: 1000, nextOffset: offset, fetchedAt: new Date().toISOString() };
     }
     where = source === 'clemis'

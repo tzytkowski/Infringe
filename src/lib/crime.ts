@@ -10,7 +10,7 @@ export type RemoteSource = 'detroit' | 'clemis';
 export type CJICSource = 'cjic-crime' | 'cjic-victim';
 export type CrimeSource = RemoteSource | CJICSource | 'news';
 export const DATA_SOURCES: { id: CrimeSource; label: string; shortLabel: string; coverage: string; color: string; url: string }[] = [
-  { id: 'news', label: 'Local news reports', shortLabel: 'NEWS', coverage: 'WXYZ + WDIV / reviewed archive', color: '#ed8f77', url: 'https://www.wxyz.com/about-us/rss' },
+  { id: 'news', label: 'Local news reports', shortLabel: 'NEWS', coverage: 'WXYZ + WDIV / reviewed citations', color: '#ed8f77', url: 'https://www.wxyz.com/about-us/rss' },
   { id: 'clemis', label: 'CLEMIS offenses', shortLabel: 'CLEMIS', coverage: 'Oakland + Macomb / 2026 onward', color: '#f4ba63', url: CLEMIS_SOURCE },
   { id: 'detroit', label: 'Detroit Police', shortLabel: 'DPD', coverage: 'Detroit / December 2016 onward', color: '#fb6b6b', url: DETROIT_SOURCE },
   { id: 'cjic-crime', label: 'CJIC crime', shortLabel: 'CJIC CRIME', coverage: 'Oakland + Macomb / 2021-2026', color: '#79cfad', url: CJIC_SOURCE },
