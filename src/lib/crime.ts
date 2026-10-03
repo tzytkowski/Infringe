@@ -56,6 +56,8 @@ export type Incident = {
   locationPrecision?: 'point' | 'approximate-point' | 'reporting-area' | 'county';
   datePrecision?: 'date';
   sourceArticles?: { outlet: string; url: string }[];
+  standardOffense?: string;
+  relatedIncidentIds?: string[];
   fields: Record<string, string | number | null>;
 };
 
@@ -134,6 +136,12 @@ export function crimeGroup(category: string) {
 
 export function isHomicideOffense(value: string) {
   return /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(value);
+}
+
+export function recordUnit(source: CrimeSource) {
+  if (source === 'news') return { singular: 'reviewed incident', plural: 'reviewed incidents' };
+  if (source === 'cjic-victim') return { singular: 'victim row', plural: 'victim rows' };
+  return { singular: 'offense row', plural: 'offense rows' };
 }
 
 export const GROUP_COLORS: Record<string, string> = {

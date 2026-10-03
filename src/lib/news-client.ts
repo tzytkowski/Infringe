@@ -1,5 +1,6 @@
 import { isHomicideOffense, type Incident } from './crime';
 import { dateOnlyMatchesPeriod, dateOnlyValue } from './date-only-period.mjs';
+import { standardCategoryName, standardizeOffense } from './offense-taxonomy.mjs';
 
 export type LocalNewsCase = {
   id: string;
@@ -79,8 +80,10 @@ export function filterNewsCases(file: NewsFile | null, period: string, category:
   if (!file || races.length) return [];
   const term = search.trim().toLowerCase();
   return file.cases.filter((item) => {
+    const standardized = standardCategoryName(category);
     if (category === 'group:homicide' && !isHomicideOffense(item.category)) return false;
-    if (category && category !== 'group:homicide' && item.category !== category) return false;
+    if (standardized && standardizeOffense(item.category, item.label) !== standardized) return false;
+    if (category && !standardized && category !== 'group:homicide' && item.category !== category) return false;
     if (!dateOnlyMatchesPeriod(item.incidentDate, period, now)) return false;
     if (term && ![item.label, item.city, item.county, item.location, ...item.articles.map((article) => article.outlet)].some((value) => value.toLowerCase().includes(term))) return false;
     return true;

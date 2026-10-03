@@ -94,10 +94,12 @@ test('source selections, archived years, recent periods, category and all-field 
 
 test('grouped homicide filter counts every matching original offense label', () => {
   const result = queryCJIC(manifest, chunks, { ...defaults, category: 'group:homicide' });
+  const standardized = queryCJIC(manifest, chunks, { ...defaults, category: 'standard:Homicide' });
   const expected = [...originalOffenseCounts].reduce((count, [key, rows]) =>
     count + (/\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(key.split('|').slice(2).join('|')) ? rows : 0), 0);
   assert.ok(expected > 0);
   assert.equal(result.total, expected);
+  assert.equal(standardized.total, expected);
   assert.ok(result.incidents.every((record) => /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(record.category)));
 });
 

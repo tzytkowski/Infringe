@@ -1,4 +1,5 @@
 import { CLEMIS_LAYER, COUNTY_QUERY_GEOMETRY, DETROIT_LAYER, type RemoteSource, type Incident, type IncidentResponse } from './crime';
+import { isHomicideCategory, standardCategoryName, standardCategoryTerms } from './offense-taxonomy.mjs';
 
 type ArcFeature = { attributes?: Record<string, unknown>; geometry?: { x?: number; y?: number } };
 type ArcResponse = { features?: ArcFeature[]; count?: number; error?: { message?: string } };
@@ -70,7 +71,7 @@ export async function fetchIncidentYears(source: RemoteSource, signal: AbortSign
     .filter((value) => Number.isInteger(value) && value >= 1900))].sort((a, b) => b - a);
 }
 
-export async function fetchIncidents(source: RemoteSource, period: string, category: string, offset: number, signal: AbortSignal): Promise<IncidentResponse> {
+export async function fetchIncidents(source: RemoteSource, period: string, category: string, search: string, offset: number, signal: AbortSignal, knownTotal?: number | null): Promise<IncidentResponse> {
   const currentYear = new Date().getUTCFullYear();
   const field = source === 'clemis' ? 'FROM_DATE' : 'incident_occurred_at';
   let where: string;
@@ -88,26 +89,42 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
   } else throw new Error('Invalid time period');
   if (category) {
     if (category.length > 120 || /[\x00-\x1f]/.test(category)) throw new Error('Invalid crime category');
-    if (category === 'group:homicide') {
+    const standardName = standardCategoryName(category);
+    if (standardName) {
       const fields = source === 'clemis' ? ['CRIME_DESC', 'CHARGEDESCRIPTION'] : ['offense_category', 'offense_description'];
-      const terms = ['HOMICIDE', 'MURDER', 'MANSLAUGHTER'];
+      const terms = standardCategoryTerms(category);
+      if (!terms.length) throw new Error('Unsupported standardized crime category');
       where += ` AND (${fields.flatMap((name) => terms.map((term) => `UPPER(${name}) LIKE '%${term}%'`)).join(' OR ')})`;
     } else {
       where += ` AND ${source === 'clemis' ? 'CRIME_DESC' : 'offense_category'} = '${category.replaceAll("'", "''")}'`;
+    }
+  }
+  const term = search.trim();
+  if (term) {
+    if (term.length > 120 || /[\x00-\x1f]/.test(term)) throw new Error('Invalid search term');
+    const escaped = term.replaceAll("'", "''").replace(/[%_]/g, '').toUpperCase();
+    if (escaped) {
+      const fields = source === 'clemis'
+        ? ['AGENCY', 'CITY', 'CHARGEDESCRIPTION', 'LOCATION', 'CRIME_DESC']
+        : ['offense_category', 'offense_description', 'neighborhood', 'nearest_intersection', 'police_precinct', 'case_status'];
+      where += ` AND (${fields.map((name) => `UPPER(${name}) LIKE '%${escaped}%'`).join(' OR ')})`;
     }
   }
   const base = baseQuery(source, where);
   const countParams = new URLSearchParams(base);
   countParams.set('returnCountOnly', 'true');
   const dataParams = new URLSearchParams(base);
-  const limit = source === 'clemis' ? 1000 : 500;
+  const limit = 1000;
   dataParams.set('outFields', source === 'clemis' ? 'OBJECTID,AGENCY,CITY,CHARGEDESCRIPTION,LOCATION,FROM_DATE,CRIME_DESC' : detroitFields);
   dataParams.set('outSR', '4326');
   dataParams.set('returnGeometry', 'true');
   dataParams.set('orderByFields', source === 'clemis' ? 'FROM_DATE DESC,OBJECTID DESC' : 'incident_occurred_at DESC,ESRI_OID DESC');
   dataParams.set('resultOffset', String(offset));
   dataParams.set('resultRecordCount', String(limit));
-  const [counts, data] = await Promise.all([query(source, countParams, signal), query(source, dataParams, signal)]);
+  const [counts, data] = await Promise.all([
+    knownTotal === undefined ? query(source, countParams, signal) : Promise.resolve({ count: knownTotal }),
+    query(source, dataParams, signal),
+  ]);
   const incidents: Incident[] = (data.features ?? []).flatMap((feature) => {
     const a = feature.attributes ?? {};
     const longitude = Number(feature.geometry?.x ?? a.longitude);
@@ -130,4 +147,18 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
   });
   return { incidents, total: typeof counts.count === 'number' ? counts.count : null,
     offset, limit, nextOffset: offset + (data.features?.length ?? 0), fetchedAt: new Date().toISOString() };
+}
+
+export async function fetchAllHomicideIncidents(source: RemoteSource, period: string, category: string, search: string, signal: AbortSignal, onProgress?: (data: IncidentResponse) => void): Promise<IncidentResponse> {
+  if (!isHomicideCategory(category)) return fetchIncidents(source, period, category, search, 0, signal);
+  let combined = await fetchIncidents(source, period, category, search, 0, signal);
+  onProgress?.(combined);
+  while (!signal.aborted && (combined.total === null ? combined.incidents.length === combined.limit : combined.nextOffset < combined.total)) {
+    const next = await fetchIncidents(source, period, category, search, combined.nextOffset, signal, combined.total);
+    if (next.nextOffset <= combined.nextOffset) break;
+    const ids = new Set(combined.incidents.map((incident) => incident.id));
+    combined = { ...next, offset: 0, incidents: [...combined.incidents, ...next.incidents.filter((incident) => !ids.has(incident.id))] };
+    onProgress?.(combined);
+  }
+  return combined;
 }

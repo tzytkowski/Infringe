@@ -17,6 +17,26 @@ function groupFor(chunk, row) {
   return ['Person', 'Property', 'Society'].includes(group) ? group : 'Other';
 }
 
+const standardOffenses = [
+  ['Homicide', ['HOMICIDE', 'MURDER', 'MANSLAUGHTER']],
+  ['Sexual offense', ['RAPE', 'SEXUAL', 'SEX OFFENSE']],
+  ['Robbery / carjacking', ['ROBBERY', 'CARJACKING']],
+  ['Kidnapping', ['KIDNAP', 'ABDUCTION']],
+  ['Aggravated assault', ['AGGRAVATED ASSAULT', 'FELONIOUS ASSAULT', 'ASSAULT WITH']],
+  ['Burglary / home invasion', ['BURGLARY', 'BREAKING AND ENTERING', 'HOME INVASION']],
+  ['Motor vehicle theft', ['MOTOR VEHICLE THEFT', 'VEHICLE THEFT', 'AUTO THEFT', 'STOLEN VEHICLE']],
+  ['Larceny / theft', ['LARCENY', 'THEFT', 'SHOPLIFT']],
+  ['Arson', ['ARSON']], ['Fraud / forgery', ['FRAUD', 'FORGERY', 'EMBEZZLEMENT', 'IDENTITY THEFT']],
+  ['Property damage', ['VANDAL', 'DAMAGE TO PROPERTY', 'DESTRUCTION OF PROPERTY']],
+  ['Weapons offense', ['WEAPON', 'FIREARM']], ['Drug / narcotic offense', ['DRUG', 'NARCOTIC']],
+  ['Simple assault / intimidation', ['ASSAULT', 'INTIMIDATION', 'STALKING']],
+];
+
+export function standardizeOffense(value) {
+  const offense = value.toUpperCase();
+  return standardOffenses.find(([, terms]) => terms.some((term) => offense.includes(term)))?.[0] || 'Other';
+}
+
 export function queryCJIC(manifest, chunks, filters) {
   const { sources, period, category = '', races = [], search = '', offset = 0, limit = 300, scope = 'all', analysisOnly = false } = filters;
   const term = search.trim().toLowerCase();
@@ -54,15 +74,15 @@ export function queryCJIC(manifest, chunks, filters) {
 
   available.forEach((chunk, chunkIndex) => {
     const matchingValues = term ? chunk.dictionaries.map((dictionary) => Uint8Array.from(dictionary.map((entry) => entry.toLowerCase().includes(term) ? 1 : 0))) : null;
-    const homicide = category === 'group:homicide';
+    const standardCategory = category === 'group:homicide' ? 'Homicide' : category.startsWith('standard:') ? category.slice('standard:'.length) : '';
     const offenseDictionary = chunk.dictionaries[chunk.columns.MICR_OFFENSE];
-    const categoryIndex = category && !homicide ? offenseDictionary.indexOf(category) : -1;
-    const homicideValues = homicide ? Uint8Array.from(offenseDictionary.map((offense) => /\b(HOMICIDE|MURDER|MANSLAUGHTER)\b/i.test(offense) ? 1 : 0)) : null;
-    if (category && !homicide && categoryIndex < 0) return;
+    const categoryIndex = category && !standardCategory ? offenseDictionary.indexOf(category) : -1;
+    const standardValues = standardCategory ? Uint8Array.from(offenseDictionary.map((offense) => standardizeOffense(offense) === standardCategory ? 1 : 0)) : null;
+    if (category && !standardCategory && categoryIndex < 0) return;
     for (let row = 0; row < chunk.count; row++) {
       const rowStart = row * chunk.fields.length;
       const offenseIndex = chunk.values[rowStart + chunk.columns.MICR_OFFENSE];
-      if (homicide ? !homicideValues[offenseIndex] : category && offenseIndex !== categoryIndex) continue;
+      if (standardCategory ? !standardValues[offenseIndex] : category && offenseIndex !== categoryIndex) continue;
       if (filteredByRace && !(chunk.masks[row] & raceMask)) continue;
       if (matchingValues && !matchingValues.some((matches, column) => matches[chunk.values[rowStart + column]])) continue;
       const rawKey = `${value(chunk, row, 'COUNTY_DESCRIPTION')}|${value(chunk, row, 'CITY_DESCRIPTION')}`;

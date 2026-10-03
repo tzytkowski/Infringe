@@ -10,6 +10,7 @@
     "data:news": "node tools/collect-news-leads.mjs",
     "test:cjic": "node --test tools/cjic.test.mjs",
     "test:news": "node --test tools/news.test.mjs",
+    "test:enhancements": "node --test tools/enhancements.test.mjs",
     "build": "next build",
     "preview:pages": "node tools/preview-pages.mjs",
     "typecheck": "tsc --noEmit"

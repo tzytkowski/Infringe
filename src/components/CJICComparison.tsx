@@ -5,6 +5,7 @@ import { ArrowLeftRight, Download, RefreshCw } from 'lucide-react';
 import { fetchCJIC } from '@/lib/cjic-client';
 import { comparisonAreas, comparisonCSV, mergeBreakdowns, percentChange, scopeLabel } from '@/lib/cjic-comparison';
 import type { CJICManifest, CJICResponse, ComparisonMap } from '@/lib/crime';
+import { STANDARD_OFFENSES } from '@/lib/offense-taxonomy.mjs';
 
 type Cohort = { scope: string; period: string; category: string; race: string };
 type Props = { manifest: CJICManifest; initialScope: string; onMapChange: (value: ComparisonMap | null) => void; onSelectArea: (key: string) => void; selectedAreaKey: string | null };
@@ -25,7 +26,7 @@ function CohortControls({ name, value, onChange, manifest }: { name: 'A' | 'B'; 
       {['Oakland', 'Macomb'].map((county) => <optgroup label={`${county} County`} key={county}><option value={`county:${county}`}>{county} — all reporting places</option>{manifest.areas.filter((area) => area.county === county && area.precision === 'reporting-area').map((area) => <option key={area.key} value={area.key}>{area.city}</option>)}<option value={`${county}|__county__`}>County-only / unresolved locations</option></optgroup>)}
     </select>
     <label htmlFor={`${prefix}-period`}>Year</label><select id={`${prefix}-period`} value={value.period} onChange={(e) => onChange({ ...value, period: e.target.value })}><option value="all">All available years</option>{years.map((year) => <option value={year} key={year}>{year}{year === Number(manifest.coverageEnd.slice(0, 4)) ? ' (through Jun 30)' : ''}</option>)}</select>
-    <label htmlFor={`${prefix}-offense`}>Offense</label><select id={`${prefix}-offense`} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })}><option value="">All offenses</option><option value="group:homicide">Homicide / Murder (related offenses)</option>{categories.map((category) => <option key={category} value={category}>{category}</option>)}</select>
+    <label htmlFor={`${prefix}-offense`}>Offense</label><select id={`${prefix}-offense`} value={value.category} onChange={(e) => onChange({ ...value, category: e.target.value })}><option value="">All offenses</option><optgroup label="Standardized categories">{STANDARD_OFFENSES.map((entry) => <option key={entry.id} value={`standard:${entry.id}`}>{entry.id}</option>)}</optgroup><optgroup label="Original source labels">{categories.map((category) => <option key={category} value={category}>{category}</option>)}</optgroup></select>
     <label htmlFor={`${prefix}-race`}>Victim race</label><select id={`${prefix}-race`} value={value.race} onChange={(e) => onChange({ ...value, race: e.target.value })}><option value="">All races</option>{manifest.races.map((race) => <option key={race}>{race}</option>)}</select>
   </fieldset>;
 }

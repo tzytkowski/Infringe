@@ -1,6 +1,6 @@
 import type { CJICManifest, CJICResponse, CJICSource } from './crime';
 
-type Filters = { sources: CJICSource[]; period: string; category: string; races: string[]; search: string; offset?: number; scope?: string; analysisOnly?: boolean };
+type Filters = { sources: CJICSource[]; period: string; category: string; races: string[]; search: string; offset?: number; limit?: number; scope?: string; analysisOnly?: boolean };
 let worker: Worker | undefined;
 let requestId = 0;
 const pending = new Map<number, { resolve: (result: CJICResponse) => void; reject: (reason: Error) => void; cleanup: () => void }>();
