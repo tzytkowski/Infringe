@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   output: 'export',
   distDir: process.env.INFRINGE_DIST_DIR || '.next',
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || undefined,
+  allowedDevOrigins: ['127.0.0.1'],
   agentRules: false,
   turbopack: {
     rules: {

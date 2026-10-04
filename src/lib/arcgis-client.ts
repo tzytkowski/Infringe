@@ -91,10 +91,19 @@ export async function fetchIncidents(source: RemoteSource, period: string, categ
     if (category.length > 120 || /[\x00-\x1f]/.test(category)) throw new Error('Invalid crime category');
     const standardName = standardCategoryName(category);
     if (standardName) {
-      const fields = source === 'clemis' ? ['CRIME_DESC', 'CHARGEDESCRIPTION'] : ['offense_category', 'offense_description'];
-      const terms = standardCategoryTerms(category);
-      if (!terms.length) throw new Error('Unsupported standardized crime category');
-      where += ` AND (${fields.flatMap((name) => terms.map((term) => `UPPER(${name}) LIKE '%${term}%'`)).join(' OR ')})`;
+      if (standardName === 'Homicide') {
+        // These are the agencies' published homicide categories. Exact category
+        // matching is both substantially faster and prevents CLEMIS assault
+        // charges such as "attempted murder" from being counted as homicides.
+        where += source === 'clemis'
+          ? " AND CRIME_DESC = 'Murder/Nonneg. Manslaughter'"
+          : " AND offense_category IN ('HOMICIDE', 'JUSTIFIABLE HOMICIDE')";
+      } else {
+        const fields = source === 'clemis' ? ['CRIME_DESC', 'CHARGEDESCRIPTION'] : ['offense_category', 'offense_description'];
+        const terms = standardCategoryTerms(category);
+        if (!terms.length) throw new Error('Unsupported standardized crime category');
+        where += ` AND (${fields.flatMap((name) => terms.map((term) => `UPPER(${name}) LIKE '%${term}%'`)).join(' OR ')})`;
+      }
     } else {
       where += ` AND ${source === 'clemis' ? 'CRIME_DESC' : 'offense_category'} = '${category.replaceAll("'", "''")}'`;
     }
