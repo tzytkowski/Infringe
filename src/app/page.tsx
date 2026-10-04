@@ -14,7 +14,7 @@ import { comparisonAreas, comparisonFeatures } from '@/lib/cjic-comparison';
 import { fetchNewsCases, filterNewsCases, type NewsFile } from '@/lib/news-client';
 import { enrichAndLinkIncidents } from '@/lib/incident-links.mjs';
 import { isHomicideCategory, offenseColor, STANDARD_OFFENSES } from '@/lib/offense-taxonomy.mjs';
-import { BUILT_IN_VIEWS, parseViewParams, serializeViewParams } from '@/lib/view-state.mjs';
+import { BUILT_IN_VIEWS, DEFAULT_VIEW, parseViewParams, serializeViewParams } from '@/lib/view-state.mjs';
 
 const CrimeMap = dynamic(() => import('@/components/CrimeMap'), { ssr: false });
 const currentYear = new Date().getFullYear();
@@ -59,13 +59,13 @@ function SelectAll({ checked, mixed, onChange, label }: { checked: boolean; mixe
 }
 
 export default function Home() {
-  const [sources, setSources] = useState<CrimeSource[]>(['clemis']);
-  const [regionalFocus, setRegionalFocus] = useState<RegionalFocus>('both');
-  const [period, setPeriod] = useState('all');
-  const [category, setCategory] = useState('');
+  const [sources, setSources] = useState<CrimeSource[]>(DEFAULT_VIEW.sources as CrimeSource[]);
+  const [regionalFocus, setRegionalFocus] = useState<RegionalFocus>(DEFAULT_VIEW.regionalFocus as RegionalFocus);
+  const [period, setPeriod] = useState(DEFAULT_VIEW.period);
+  const [category, setCategory] = useState(DEFAULT_VIEW.category);
   const [remoteCategories, setRemoteCategories] = useState<string[]>([]);
   const [remoteYears, setRemoteYears] = useState<number[]>([]);
-  const [races, setRaces] = useState<string[]>([]);
+  const [races, setRaces] = useState<string[]>(DEFAULT_VIEW.races);
   const [manifest, setManifest] = useState<CJICManifest | null>(null);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const [remote, setRemote] = useState<Partial<Record<RemoteSource, RemoteState>>>({});
@@ -76,8 +76,8 @@ export default function Home() {
   const [newsError, setNewsError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedAreaKey, setSelectedAreaKey] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useState(DEFAULT_VIEW.search);
+  const [debouncedSearch, setDebouncedSearch] = useState(DEFAULT_VIEW.search);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [resetSignal, setResetSignal] = useState(0);
@@ -88,7 +88,7 @@ export default function Home() {
   const [comparison, setComparison] = useState<ComparisonMap | null>(null);
   const [comparisonScope, setComparisonScope] = useState('all');
   const [mapMetric, setMapMetric] = useState<CJICMetric>('crime');
-  const [recordSort, setRecordSort] = useState<RecordSort>('newest');
+  const [recordSort, setRecordSort] = useState<RecordSort>(DEFAULT_VIEW.recordSort as RecordSort);
   const [recordFilterField, setRecordFilterField] = useState('any');
   const [recordFilter, setRecordFilter] = useState('');
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -111,7 +111,11 @@ export default function Home() {
       const stored = JSON.parse(window.localStorage.getItem('infringe-saved-views') || '[]');
       if (Array.isArray(stored)) setSavedViews(stored);
     } catch { /* Ignore malformed local preferences. */ }
-    const parsed = parseViewParams(new URLSearchParams(window.location.search), DATA_SOURCES.map((source) => source.id));
+    const params = new URLSearchParams(window.location.search);
+    const onlyLegacyDefaultParams = [...params.keys()].every((key) => ['sources', 'period'].includes(key))
+      && params.get('sources') === 'clemis'
+      && params.get('period') === DEFAULT_VIEW.period;
+    const parsed = onlyLegacyDefaultParams ? null : parseViewParams(params, DATA_SOURCES.map((source) => source.id));
     if (parsed) applyView(parsed as FilterView);
     setUrlReady(true);
   }, []);
@@ -351,13 +355,14 @@ export default function Home() {
   function applyView(view: FilterView) {
     const allowedSources = new Set(DATA_SOURCES.map((source) => source.id));
     const allowedSorts: RecordSort[] = ['newest', 'oldest', 'offense-asc', 'offense-desc', 'location-asc', 'location-desc', 'source-asc', 'source-desc'];
-    setSources((view.sources || []).filter((source): source is CrimeSource => allowedSources.has(source)));
-    setPeriod(view.period || 'all');
-    setCategory(view.category || '');
-    setRaces(view.races || []);
-    setSearch(view.search || '');
-    setDebouncedSearch(view.search || '');
-    setRegionalFocus(['both', 'oakland', 'macomb'].includes(view.regionalFocus) ? view.regionalFocus : 'both');
+    const nextSources = (view.sources || []).filter((source): source is CrimeSource => allowedSources.has(source));
+    setSources(nextSources.length ? nextSources : DEFAULT_VIEW.sources as CrimeSource[]);
+    setPeriod(view.period || DEFAULT_VIEW.period);
+    setCategory(view.category || DEFAULT_VIEW.category);
+    setRaces(view.races || DEFAULT_VIEW.races);
+    setSearch(view.search || DEFAULT_VIEW.search);
+    setDebouncedSearch(view.search || DEFAULT_VIEW.search);
+    setRegionalFocus(['both', 'oakland', 'macomb'].includes(view.regionalFocus) ? view.regionalFocus : DEFAULT_VIEW.regionalFocus as RegionalFocus);
     setRecordSort(view.recordSort && allowedSorts.includes(view.recordSort) ? view.recordSort : 'newest');
     setRecordFilterField('any');
     setRecordFilter('');

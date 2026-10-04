@@ -1,3 +1,13 @@
+export const DEFAULT_VIEW = {
+  sources: ['detroit'],
+  period: '24h',
+  category: '',
+  races: [],
+  search: '',
+  regionalFocus: 'both',
+  recordSort: 'newest',
+};
+
 export const BUILT_IN_VIEWS = [
   { id: 'detroit-homicides', name: 'All Detroit homicides', view: { sources: ['detroit', 'news'], period: 'all', category: 'standard:Homicide', races: [], search: '', regionalFocus: 'both' } },
   { id: 'metro-homicides', name: 'All metro homicides', view: { sources: ['news', 'clemis', 'detroit', 'cjic-crime', 'cjic-victim'], period: 'all', category: 'standard:Homicide', races: [], search: '', regionalFocus: 'both' } },
@@ -10,15 +20,15 @@ export const BUILT_IN_VIEWS = [
 export function parseViewParams(params, allowedSources) {
   if (![...params.keys()].some((key) => ['sources', 'period', 'category', 'races', 'q', 'focus', 'sort'].includes(key))) return null;
   const sources = (params.get('sources') || '').split(',').filter((source) => allowedSources.includes(source));
-  const period = params.get('period') || 'all';
+  const period = params.get('period') || DEFAULT_VIEW.period;
   return {
-    sources,
+    sources: sources.length ? sources : DEFAULT_VIEW.sources,
     period: period === 'all' || ['24h', '7d', '30d'].includes(period) || /^\d{4}$/.test(period) ? period : 'all',
     category: (params.get('category') || '').slice(0, 160),
     races: (params.get('races') || '').split(',').filter(Boolean),
     search: (params.get('q') || '').slice(0, 120),
     regionalFocus: ['both', 'oakland', 'macomb'].includes(params.get('focus') || '') ? params.get('focus') : 'both',
-    recordSort: params.get('sort') || 'newest',
+    recordSort: params.get('sort') || DEFAULT_VIEW.recordSort,
   };
 }
 
