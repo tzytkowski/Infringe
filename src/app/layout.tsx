@@ -3,8 +3,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Infringe | Detroit Crime Atlas',
-  description: 'Explore reported crime incidents from the Detroit Police Department by date, category, and location.',
+  title: 'Infringe | Metro Detroit Crime Atlas',
+  description: 'Explore Detroit and CLEMIS reports, Michigan CJIC crime and victim records, and local news with shared filters, maps, and source-aware analysis.',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

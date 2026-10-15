@@ -1,4 +1,15 @@
 export const DAY_MS = 86_400_000;
+const detroitParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Detroit', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' });
+function detroitTime(date, hour) {
+  const target = Date.parse(`${date}T${String(hour).padStart(2, '0')}:00:00Z`);
+  let time = target;
+  for (let iteration = 0; iteration < 3; iteration++) {
+    const parts = Object.fromEntries(detroitParts.formatToParts(time).map((part) => [part.type, Number(part.value)]));
+    const local = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+    time += target - local;
+  }
+  return time;
+}
 
 /**
  * Convert a date-only value to noon in Detroit. Noon prevents records from
@@ -7,7 +18,7 @@ export const DAY_MS = 86_400_000;
  * @param {string} date
  */
 export function dateOnlyValue(date) {
-  return Date.parse(`${date}T12:00:00-04:00`);
+  return detroitTime(date, 12);
 }
 
 /**
@@ -19,9 +30,9 @@ export function dateOnlyValue(date) {
  * @param {number} windowEnd
  */
 export function dateOnlyOverlapsWindow(date, windowStart, windowEnd) {
-  const noon = dateOnlyValue(date);
-  const dateStart = noon - DAY_MS / 2;
-  const dateEnd = noon + DAY_MS / 2 - 1;
+  const nextDate = new Date(Date.parse(`${date}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10);
+  const dateStart = detroitTime(date, 0);
+  const dateEnd = detroitTime(nextDate, 0) - 1;
   return dateEnd >= windowStart && dateStart <= windowEnd;
 }
 

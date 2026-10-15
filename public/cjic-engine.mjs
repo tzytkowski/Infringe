@@ -25,10 +25,11 @@ const standardOffenses = [
   ['Aggravated assault', ['AGGRAVATED ASSAULT', 'FELONIOUS ASSAULT', 'ASSAULT WITH']],
   ['Burglary / home invasion', ['BURGLARY', 'BREAKING AND ENTERING', 'HOME INVASION']],
   ['Motor vehicle theft', ['MOTOR VEHICLE THEFT', 'VEHICLE THEFT', 'AUTO THEFT', 'STOLEN VEHICLE']],
+  ['Fraud / forgery', ['FRAUD', 'FORGERY', 'EMBEZZLEMENT', 'IDENTITY THEFT']],
   ['Larceny / theft', ['LARCENY', 'THEFT', 'SHOPLIFT']],
-  ['Arson', ['ARSON']], ['Fraud / forgery', ['FRAUD', 'FORGERY', 'EMBEZZLEMENT', 'IDENTITY THEFT']],
+  ['Arson', ['ARSON']],
   ['Property damage', ['VANDAL', 'DAMAGE TO PROPERTY', 'DESTRUCTION OF PROPERTY']],
-  ['Weapons offense', ['WEAPON', 'FIREARM']], ['Drug / narcotic offense', ['DRUG', 'NARCOTIC']],
+  ['Weapons offense', ['WEAPON', 'FIREARM']], ['Drug / narcotic offense', ['DRUG', 'NARCOTIC', 'CONTROLLED SUBSTANCE']],
   ['Simple assault / intimidation', ['ASSAULT', 'INTIMIDATION', 'STALKING']],
 ];
 
@@ -38,7 +39,7 @@ export function standardizeOffense(value) {
 }
 
 export function queryCJIC(manifest, chunks, filters) {
-  const { sources, period, category = '', races = [], search = '', offset = 0, limit = 300, scope = 'all', analysisOnly = false } = filters;
+  const { sources, period, category = '', races = [], search = '', offset = 0, limit = 300, scope = 'all', analysisOnly = false, recordFilterField = 'any', recordFilterValue = '' } = filters;
   const term = search.trim().toLowerCase();
   const raceMask = races.reduce((mask, race) => {
     const index = manifest.races.indexOf(race);
@@ -88,6 +89,18 @@ export function queryCJIC(manifest, chunks, filters) {
       const rawKey = `${value(chunk, row, 'COUNTY_DESCRIPTION')}|${value(chunk, row, 'CITY_DESCRIPTION')}`;
       const location = geography.get(rawKey);
       if (!location) throw new Error(`Missing reporting geography for ${rawKey}`);
+      if (recordFilterValue) {
+        const offense = value(chunk, row, 'MICR_OFFENSE');
+        const sourceLabel = chunk.source === 'cjic-crime' ? 'CJIC crime' : 'CJIC victims';
+        const place = `${location.city}, ${location.county}`;
+        const candidates = recordFilterField === 'source' ? [sourceLabel]
+          : recordFilterField === 'offense' ? [standardizeOffense(offense)]
+          : recordFilterField === 'location' ? [place]
+          : recordFilterField.startsWith('field:') ? [value(chunk, row, recordFilterField.slice(6))]
+          : [offense, sourceLabel, place, ...chunk.fields.map((field) => value(chunk, row, field))];
+        const selected = recordFilterField === 'offense' && recordFilterValue.startsWith('standard:') ? recordFilterValue.slice(9) : recordFilterValue;
+        if (!candidates.some((candidate) => candidate.trim().toLocaleLowerCase() === selected.toLocaleLowerCase())) continue;
+      }
       const key = location.precision === 'county' ? `${location.county}|__county__` : rawKey;
       if (!inScope(location, key)) continue;
       total++;

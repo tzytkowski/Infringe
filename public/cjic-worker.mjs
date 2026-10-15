@@ -3,8 +3,8 @@ import { prepareChunk, queryCJIC } from './cjic-engine.mjs';
 const chunks = new Map();
 let manifestPromise;
 async function json(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`CJIC data returned ${response.status}. Run npm run data:cjic to prepare the downloaded files.`);
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error(`The CJIC snapshot returned ${response.status}. Refresh to retry.`);
   return response.json();
 }
 self.addEventListener('message', async ({ data: { id, basePath, filters } }) => {

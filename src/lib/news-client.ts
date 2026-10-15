@@ -1,3 +1,4 @@
+import { fetchJSONResponse } from './http';
 import { isHomicideOffense, type Incident } from './crime';
 import { dateOnlyMatchesPeriod, dateOnlyValue } from './date-only-period.mjs';
 import { standardCategoryName, standardizeOffense } from './offense-taxonomy.mjs';
@@ -69,8 +70,8 @@ function validateNewsArticles(value: unknown) {
 export async function fetchNewsCases(signal: AbortSignal): Promise<NewsFile> {
   const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
   const [caseResponse, articleResponse] = await Promise.all([
-    fetch(`${base}/data/local-news/incidents.json`, { signal, cache: 'no-store' }),
-    fetch(`${base}/data/local-news/articles.json`, { signal, cache: 'no-store' }),
+    fetchJSONResponse(`${base}/data/local-news/incidents.json`, { signal, cache: 'no-store' }),
+    fetchJSONResponse(`${base}/data/local-news/articles.json`, { signal, cache: 'no-store' }),
   ]);
   if (!caseResponse.ok) throw new Error(`Reviewed news cases returned ${caseResponse.status}`);
   if (!articleResponse.ok) throw new Error(`Publisher news feed returned ${articleResponse.status}`);

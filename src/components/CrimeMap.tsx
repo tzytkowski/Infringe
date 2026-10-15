@@ -40,6 +40,13 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   const popup = useRef<maplibregl.Popup | null>(null);
   const locationMarker = useRef<maplibregl.Marker | null>(null);
   const [satellite, setSatellite] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [locationMessage, setLocationMessage] = useState('');
+  const [mapRetry, setMapRetry] = useState(0);
+  const [mapReady, setMapReady] = useState(0);
+  const [basemapUnavailable, setBasemapUnavailable] = useState(false);
+  const satelliteRef = useRef(satellite);
+  satelliteRef.current = satellite;
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const onSelectAreaRef = useRef(onSelectArea);
@@ -74,8 +81,10 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   useEffect(() => {
     if (!container.current || map.current) return;
     maplibregl.setWorkerUrl(`${process.env.NEXT_PUBLIC_BASE_PATH || ''}/vendor/maplibre/${maplibregl.getVersion()}/maplibre-gl-worker.mjs`);
-    const instance = new maplibregl.Map({
+    let instance: maplibregl.Map;
+    try { instance = new maplibregl.Map({
       container: container.current,
+      cooperativeGestures: true,
       style: {
         version: 8,
         sources: {
@@ -105,8 +114,19 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       minZoom: 5.5,
       maxZoom: 17,
       attributionControl: false,
-    });
+    }); } catch {
+      setMapError('The map could not start. Enable hardware acceleration or try another browser. Records and charts remain available.');
+      return;
+    }
+    setMapError(null);
+    setBasemapUnavailable(false);
     map.current = instance;
+    instance.on('error', (event) => {
+      if ((event as typeof event & { sourceId?: string }).sourceId === (satelliteRef.current ? 'satellite' : 'osm')) setBasemapUnavailable(true);
+    });
+    instance.on('sourcedata', (event) => {
+      if (event.sourceId === (satelliteRef.current ? 'satellite' : 'osm') && event.sourceDataType === 'content') setBasemapUnavailable(false);
+    });
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     const resizeObserver = new ResizeObserver(() => {
@@ -114,7 +134,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       fitBoundsOneLevelCloser(instance, boundsRef.current, 28, 0, centerNorthMilesRef.current, centerEastMilesRef.current);
     });
     resizeObserver.observe(container.current);
-    instance.on('load', () => {
+    instance.on('style.load', () => {
       fitBoundsOneLevelCloser(instance, bounds, 28, 0, centerNorthMiles, centerEastMiles);
       instance.addSource('cjic-areas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       instance.addLayer({
@@ -235,9 +255,10 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
         instance.on('mouseenter', layer, () => { instance.getCanvas().style.cursor = 'pointer'; });
         instance.on('mouseleave', layer, () => { instance.getCanvas().style.cursor = ''; });
       }
+      setMapReady((value) => value + 1);
     });
     return () => { resizeObserver.disconnect(); popup.current?.remove(); locationMarker.current?.remove(); locationMarker.current = null; instance.remove(); map.current = null; };
-  }, []);
+  }, [mapRetry]);
 
   useEffect(() => {
     const instance = map.current;
@@ -246,10 +267,10 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       instance.setLayoutProperty('satellite', 'visibility', satellite ? 'visible' : 'none');
       instance.setLayoutProperty('osm', 'visibility', satellite ? 'none' : 'visible');
     };
-    if (instance.isStyleLoaded()) updateBasemap();
-    else instance.once('load', updateBasemap);
-    return () => { instance.off('load', updateBasemap); };
-  }, [satellite]);
+    if (instance.getLayer('osm')) updateBasemap();
+    else instance.once('style.load', updateBasemap);
+    return () => { instance.off('style.load', updateBasemap); };
+  }, [satellite, mapRetry]);
 
   useEffect(() => {
     const instance = map.current;
@@ -301,9 +322,9 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       instance.setLayoutProperty('news-case-hit-targets', 'visibility', comparison ? 'none' : 'visible');
     };
     if (instance.getSource('incidents')) update();
-    else instance.once('load', update);
-    return () => { instance.off('load', update); };
-  }, [incidents, sources, areas, metric, comparison]);
+    else instance.once('style.load', update);
+    return () => { instance.off('style.load', update); };
+  }, [incidents, sources, areas, metric, comparison, mapRetry]);
 
   useEffect(() => {
     const instance = map.current;
@@ -318,7 +339,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     const area = areas.find((item) => item.key === key);
     if (area) instance.fitBounds(area.bounds, { padding: 48, maxZoom: 13, duration: 650 });
     else if (selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') && selected.longitude !== null && selected.latitude !== null) instance.easeTo({ center: [selected.longitude, selected.latitude], zoom: Math.max(instance.getZoom(), 12), duration: 650 });
-  }, [selectedId, selectedAreaKey, incidents, areas]);
+  }, [selectedId, selectedAreaKey, incidents, areas, mapReady]);
 
   useEffect(() => {
     if (map.current) fitBoundsOneLevelCloser(map.current, bounds, 28, 700, centerNorthMiles, centerEastMiles);
@@ -326,10 +347,12 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
 
   useEffect(() => {
     if (!locateSignal) return;
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { setLocationMessage('Location is unavailable in this browser.'); return; }
+    setLocationMessage('Finding your location…');
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       const instance = map.current;
       if (!instance) return;
+      setLocationMessage('');
       if (!locationMarker.current) {
         const marker = document.createElement('span');
         marker.className = 'current-location-marker';
@@ -338,12 +361,12 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
       }
       locationMarker.current.setLngLat([coords.longitude, coords.latitude]);
       instance.easeTo({ center: [coords.longitude, coords.latitude], zoom: Math.max(instance.getZoom(), 13), duration: 700 });
-    }, () => undefined, { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
+    }, (cause) => setLocationMessage(cause.code === 1 ? 'Location permission was denied. You can enable it in browser settings.' : 'Your location could not be found. Try again.'), { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 });
   }, [locateSignal]);
 
   useEffect(() => {
     if (map.current && comparisonBounds) map.current.fitBounds(comparisonBounds, { padding: 48, maxZoom: 13, duration: 700 });
   }, [comparisonBoundsKey]);
 
-  return <><div className="map-canvas" ref={container} aria-label="Agency incident heatmap and CJIC reporting-boundary density map" /><button className="map-basemap-toggle" type="button" onClick={() => setSatellite((value) => !value)} aria-label={`Switch to ${satellite ? 'regular' : 'satellite'} map`} title={`Switch to ${satellite ? 'regular' : 'satellite'} map`}>{satellite ? 'Map' : 'Satellite'}</button></>;
+  return <>{basemapUnavailable && !mapError && !locationMessage && <div className="map-location-message" role="status"><span>Background tiles are unavailable. Data overlays remain usable.</span><button type="button" onClick={() => setMapRetry((value) => value + 1)} aria-label="Retry background map">↻</button></div>}{mapError && <div className="map-error" role="alert"><div><strong>Map unavailable</strong><span>{mapError}</span><button type="button" onClick={() => setMapRetry((value) => value + 1)}>Retry map</button></div></div>}{locationMessage && <div className="map-location-message" role="status">{locationMessage}<button type="button" onClick={() => setLocationMessage('')} aria-label="Dismiss location message">×</button></div>}<div className="map-canvas" ref={container} aria-label="Agency incident heatmap and CJIC reporting-boundary density map" /><button className="map-basemap-toggle" type="button" onClick={() => setSatellite((value) => !value)} aria-label={`Switch to ${satellite ? 'regular' : 'satellite'} map`} title={`Switch to ${satellite ? 'regular' : 'satellite'} map`}>{satellite ? 'Map' : 'Satellite'}</button></>;
 }

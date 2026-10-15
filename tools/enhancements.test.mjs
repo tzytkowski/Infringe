@@ -8,6 +8,9 @@ test('standard offense taxonomy preserves useful cross-source distinctions', () 
   assert.equal(standardizeOffense('Murder and non-negligent manslaughter'), 'Homicide');
   assert.equal(standardizeOffense('Motor vehicle theft'), 'Motor vehicle theft');
   assert.equal(standardizeOffense('Aggravated assault with a firearm'), 'Aggravated assault');
+  assert.equal(standardizeOffense('Fraud Identity Theft'), 'Fraud / forgery');
+  assert.equal(standardizeOffense('Violation of Controlled Substance'), 'Drug / narcotic offense');
+  assert.equal(standardizeOffense('ASSAULT', 'Attempted murder'), 'Simple assault / intimidation');
   assert.deepEqual(standardCategoryTerms('standard:Homicide'), ['HOMICIDE', 'MURDER', 'MANSLAUGHTER']);
 });
 
@@ -34,7 +37,17 @@ test('news and agency entries link only with matching date and location evidence
 });
 
 test('shareable view parameters round-trip filters', () => {
-  const view = { sources: ['detroit', 'news'], period: '2024', category: 'standard:Homicide', races: [], search: 'Woodward', regionalFocus: 'both', recordSort: 'oldest' };
+  const view = { sources: ['detroit', 'news'], period: '2024', category: 'standard:Homicide', races: [], search: 'Woodward', regionalFocus: 'both', recordSort: 'oldest', recordFilterField: 'location', recordFilter: 'Detroit' };
   const parsed = parseViewParams(serializeViewParams(view), ['detroit', 'news', 'clemis']);
   assert.deepEqual(parsed, view);
+});
+test('all-years, empty-source and field-filter links survive reloads', () => {
+  const allowed = ['detroit', 'news', 'clemis', 'cjic-crime', 'cjic-victim'];
+  for (const sources of [[], ['cjic-crime'], ['detroit', 'news']]) {
+    const view = { sources, period: 'all', category: '', races: [], search: '', regionalFocus: 'both', recordSort: 'newest', recordFilterField: 'field:MICR_OFFENSE', recordFilter: '09001 - Murder' };
+    assert.deepEqual(parseViewParams(serializeViewParams(view), allowed), view);
+  }
+  assert.equal(parseViewParams(new URLSearchParams('sources=cjic-crime'), allowed).period, 'all');
+  assert.equal(parseViewParams(new URLSearchParams('sources=cjic-crime&period=24h'), allowed).period, 'all');
+  assert.equal(parseViewParams(new URLSearchParams('sources=clemis&period=24h'), allowed).sources[0], 'clemis');
 });

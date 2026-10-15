@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { dateOnlyMatchesPeriod } from '../src/lib/date-only-period.mjs';
+import { dateOnlyMatchesPeriod, dateOnlyOverlapsWindow, dateOnlyValue } from '../src/lib/date-only-period.mjs';
 import { parseFeed } from './collect-news-leads.mjs';
 
 function feed(items) {
   return `<rss><channel>${items.map(({ title, link, description = '' }) => `<item><title><![CDATA[${title}]]></title><link>${link}</link><description><![CDATA[${description}]]></description><pubDate>Tue, 29 Sep 2026 20:00:00 GMT</pubDate></item>`).join('')}</channel></rss>`;
 }
+test('Detroit date-only windows honor winter offset and daylight-saving transitions', () => {
+  assert.equal(dateOnlyValue('2026-01-01'), Date.parse('2026-01-01T12:00:00-05:00'));
+  assert.equal(dateOnlyOverlapsWindow('2026-01-01', Date.parse('2026-01-01T04:00:00Z'), Date.parse('2026-01-01T04:30:00Z')), false);
+  assert.equal(dateOnlyOverlapsWindow('2026-03-08', Date.parse('2026-03-09T04:00:00Z'), Date.parse('2026-03-09T04:30:00Z')), false);
+  assert.equal(dateOnlyOverlapsWindow('2026-11-01', Date.parse('2026-11-02T04:00:00Z'), Date.parse('2026-11-02T04:30:00Z')), true);
+});
 
 test('RSS collector keeps crime leads but excludes traffic deaths and unrelated stories', () => {
   const xml = feed([

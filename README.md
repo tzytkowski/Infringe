@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. Startup and builds automatically prepare the downloaded CJIC files. `npm run typecheck`, `npm run test:cjic`, and `npm run build` verify the app.
+Open <http://localhost:3000>. Startup and builds automatically prepare the downloaded CJIC files. `npm run check` validates types, filters, charts, exports, request cancellation and prepared data integrity. `npm run test:cjic` additionally reconciles against the original CSV downloads when available. CI runs the checks, production build and `npm run test:export` before deployment.
 
 If another development instance is already running, use an independent output directory and port:
 
@@ -67,11 +67,17 @@ Open **Compare & analyze** beside the records tab, or select a reporting area an
 
 The worker aggregates every matching export row before any record pagination. The panel shows separate crime/victim totals, absolute and percentage changes, victim-to-crime row-volume ratios, sortable place tables, paired charts, offense breakdowns, year trends and victim race/age/sex breakdowns. **Export data** downloads cohort settings, all place totals and the selected breakdown as CSV. Analysis is calculated locally in the browser and uses no paid analysis service.
 
-The comparison map can display A, B, or B minus A for crime or victim rows, with optional rows per square kilometer. Changes use a symmetric logarithmic scale: blue is lower in B, amber higher in B. A place outside one cohort is shown as A-only/B-only rather than falsely treating missing coverage as zero. Zero-match municipalities remain separate clickable overlays, including villages enclosed by townships. County-only rows remain in tables and totals with dashed county outlines and never contribute municipal density. Click a map area or a table place to highlight its boundary and inspect both counts. In Records, the CJIC map measure selector separates crime-row density from victim-row density; combining both requires selecting **All selected rows** explicitly.
+The comparison map can display A, B, or B minus A for crime or victim rows, with optional rows per square kilometer. Changes use a symmetric logarithmic scale: blue is lower in B, amber higher in B. A place outside one cohort is shown as A-only/B-only rather than falsely treating missing coverage as zero. Zero-match municipalities remain separate clickable overlays, including villages enclosed by townships. County-only rows remain in tables and totals with dashed county outlines and never contribute municipal density. Click a map area or a table place to highlight its boundary and inspect both counts. The map follows the shared source filters: crime-row density when CJIC crime is selected, otherwise victim-row density.
 
 The 2026 snapshot stops June 30; comparisons involving it are flagged as partial-year comparisons. Changes describe export row volumes, not unique crimes, unique people, population-adjusted risk, annualized trends, or causal relationships. Tests independently reconcile every city/year/source total and the analysis breakdowns against the original CSVs and verify county clipping, municipal aliases, empty overlays and missing-cohort handling.
 
 **Compare last 2 full years** aligns place, offense, and victim-race filters across the latest two complete years. Because CJIC provides only incident years, it cannot compare the same months of a partial year against an earlier year. The panel hides percentage changes for unequal-length periods or counts below 10 while retaining raw differences.
+
+## Dashboard charts
+
+One Filters popup controls the map, charts and records. Activity aggregates the entire matching query before pagination, uses integer axis intervals, and offers a three-bucket trailing average. Offenses shows major categories, always retaining homicide; selecting a named category filters the dashboard. Victim race uses CJIC victim rows only and retains unknown race. Patterns uses exact timestamps in Eastern Time and excludes annual and date-only records. Source row units and coverage remain labeled.
+
+Use Quick views to save filters or copy a shareable URL. Record exports include only the currently loaded, filtered rows; comparison exports include complete cohort aggregates. Map startup and geolocation failures show recoverable messages without preventing access to records or charts.
 
 ## Data and coverage
 
@@ -83,7 +89,7 @@ The 2026 snapshot stops June 30; comparisons involving it are flagged as partial
 
 ## Views, taxonomy, and linked records
 
-Filter state is encoded in the page URL, including sources, period, standardized or original offense, victim race, search, map focus, and record sort. The **Quick views** section provides common presets and stores user-named views in that browser's local storage.
+Filter state is encoded in the page URL, including sources, period, standardized or original offense, victim race, search, map focus, record sort, and field/value filters. The **Quick views** section provides common presets and stores user-named views in that browser's local storage.
 
 Standardized offense categories translate common homicide, assault, robbery, theft, fraud, weapons, drug, and related terminology across sources. Original source labels remain visible and unchanged on every record. Counts also retain their source unit: Detroit, CLEMIS, and CJIC crime entries are offense rows; CJIC victim entries are victim rows; local-news entries are reviewed incidents. Combined totals are source-entry volumes, not deduplicated crimes or people.
 

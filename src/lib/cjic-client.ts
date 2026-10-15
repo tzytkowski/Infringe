@@ -1,14 +1,15 @@
 import type { CJICManifest, CJICResponse, CJICSource } from './crime';
+import { fetchJSONResponse } from './http';
 
-type Filters = { sources: CJICSource[]; period: string; category: string; races: string[]; search: string; offset?: number; limit?: number; scope?: string; analysisOnly?: boolean };
+type Filters = { sources: CJICSource[]; period: string; category: string; races: string[]; search: string; offset?: number; limit?: number; scope?: string; analysisOnly?: boolean; recordFilterField?: string; recordFilterValue?: string };
 let worker: Worker | undefined;
 let requestId = 0;
 const pending = new Map<number, { resolve: (result: CJICResponse) => void; reject: (reason: Error) => void; cleanup: () => void }>();
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export async function fetchCJICManifest(signal: AbortSignal): Promise<CJICManifest> {
-  const response = await fetch(`${basePath}/data/michigan-cjic/prepared/manifest.json`, { signal });
-  if (!response.ok) throw new Error('CJIC files are not prepared. Run npm run data:cjic and refresh.');
+  const response = await fetchJSONResponse(`${basePath}/data/michigan-cjic/prepared/manifest.json`, { signal });
+  if (!response.ok) throw new Error('The CJIC snapshot is unavailable. Refresh to retry.');
   return response.json();
 }
 

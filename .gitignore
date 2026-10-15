@@ -2,6 +2,7 @@ node_modules/
 .npm-cache/
 .next/
 .next-cjic-dev/
+.next-*/
 out/
 .env*.local
 *.tsbuildinfo

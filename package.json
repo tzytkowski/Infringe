@@ -11,6 +11,10 @@
     "test:cjic": "node --test tools/cjic.test.mjs",
     "test:news": "node --test tools/news.test.mjs",
     "test:enhancements": "node --test tools/enhancements.test.mjs",
+    "test:trend": "node --test tools/record-trend.test.mjs",
+    "test": "node --experimental-strip-types --test tools/enhancements.test.mjs tools/news.test.mjs tools/record-trend.test.mjs tools/prepared.test.mjs tools/release.test.mjs",
+    "test:export": "node --test tools/export.test.mjs",
+    "check": "npm run typecheck && npm test",
     "build": "next build",
     "preview:pages": "node tools/preview-pages.mjs",
     "typecheck": "tsc --noEmit"
@@ -18,7 +22,7 @@
   "dependencies": {
     "lucide-react": "^0.468.0",
     "maplibre-gl": "6.7.0",
-    "next": "16.3.4",
+    "next": "16.4.1",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },

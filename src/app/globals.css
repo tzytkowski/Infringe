@@ -607,6 +607,80 @@ input[type="checkbox"] { width: 15px; height: 15px; margin: 1px 0 0; accent-colo
 .news-citations a { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #81594d; border-radius: 4px; color: #ffd5bd; }
 .news-citations a:hover { background: #47312b; }
 
+/* One shared filter dialog for the map, charts, and record list. */
+.shell { grid-template-columns: minmax(0, 1fr); }
+.main { grid-column: 1; }
+.icon-button.shared-filter-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: auto; min-width: 80px; padding: 7px 10px; color: #dfbd8c; font-size: 11px; }
+.sidebar.shared-filter-popup:not(:popover-open) { display: none; }
+.sidebar.shared-filter-popup:popover-open { display: flex; flex-direction: column; position: fixed; inset: 0; width: min(560px, calc(100vw - 28px)); max-height: 85dvh; margin: auto; padding: 0; overflow-y: auto; overscroll-behavior: contain; background: #142129; border: 1px solid #465b66; border-radius: 12px; box-shadow: 0 24px 90px #0009; }
+.shared-filter-popup::backdrop { background: #02070c70; backdrop-filter: blur(3px); }
+.shared-filter-popup .shared-filter-heading { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; flex: none; min-height: 70px; padding: 15px 20px; background: #142129; border-bottom: 1px solid #354852; }
+.shared-filter-heading > div { display: grid; gap: 7px; }
+.shared-filter-heading small { color: #99b0bc; font: 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.shared-filter-heading > button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid #3b5260; border-radius: 6px; background: #1e303b; color: #b6cbd5; }
+.shared-filter-popup .filter-section { flex: none; padding: 18px 20px; }
+.shared-filter-popup .source-option, .shared-filter-popup .race-option, .shared-filter-popup .check-all { min-height: 32px; }
+.shared-filter-popup .sidebar-bottom { margin-top: 0; }
+.shared-record-filters .field-label { display: block; margin: 13px 0 6px; }
+.shared-record-filters input[type="search"] { width: 100%; min-height: 38px; padding: 9px 10px; background: #192c36; border: 1px solid #3b5260; border-radius: 5px; color: #d6e3e8; font-size: 12px; }
+@media (max-width: 640px) { .icon-button.shared-filter-toggle { min-width: 0; padding: 7px 9px; min-height: 36px; }.shared-filter-popup .filter-section { padding: 16px; }.shared-filter-popup .shared-filter-heading { padding: 14px 16px; } }
 
-
-
+/* Keep the map and record browser usable on shorter laptop screens. */
+@media (min-width: 841px) {
+  .main { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #465c66 #10181d; }
+  .workspace, .comparing .workspace { flex: 1 0 430px; min-height: 430px; }
+  .source-strip { flex: none; }
+}
+.workspace-shortcuts { display: none; }
+.filter-state-count { display: inline-grid; place-items: center; min-width: 17px; height: 17px; border-radius: 4px; background: #d9ad7024; color: #edcc9b; font-size: 10px; font-variant-numeric: tabular-nums; }
+.shared-filter-footer { position: sticky; bottom: 0; z-index: 2; flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 62px; padding: 11px 20px; background: #142129; border-top: 1px solid #354852; }
+.shared-filter-footer button { min-height: 38px; padding: 8px 17px; border-radius: 6px; border: 1px solid #405761; background: #1b2e38; color: #aec3ce; font-size: 12px; }
+.shared-filter-footer button:first-child { margin-right: auto; background: transparent; }
+.shared-filter-footer button:last-child { background: #d9ad701a; border-color: #87704d; color: #edcc9b; }
+.records-panel { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.records-panel .records-header small { font-size: 9px; letter-spacing: .08em; }
+.records-header h2 { font-size: 17px; font-weight: 600; }
+.record-body strong { font-family: inherit; font-size: 13px; line-height: 1.4; font-weight: 500; letter-spacing: 0; }
+.record-meta { font-family: inherit; font-size: 11px; line-height: 1.5; letter-spacing: 0; color: #91a9b6; }
+.record-source { line-height: 1.5; letter-spacing: .02em; }
+.record-body { gap: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #d9b57b; outline-offset: 3px; }
+@media (max-width: 840px) {
+  .workspace-shortcuts { position: sticky; top: 68px; z-index: 25; display: flex; order: 1; flex: none; align-items: center; justify-content: center; gap: 5px; min-height: 29px; padding: 0 12px; border-bottom: 1px solid #293e49; background: #101b22f5; backdrop-filter: blur(12px); }
+  .workspace-shortcuts > a { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; flex: 1; max-width: 180px; color: #a8becb; font: 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; border-radius: 6px; }
+  .workspace-shortcuts > a > svg { width: 12px; height: 12px; }
+  .workspace-shortcuts > a:hover { color: #e6c797; background: #d9ad700a; }
+  #data-overview, #incident-map, #public-records, #comparison-view { scroll-margin-top: 109px; }
+  .topbar .icon-button { min-width: 44px; min-height: 44px; }
+  .map-topline button, .map-topline .reset-view { min-width: 44px; min-height: 44px; }
+  .map-panel .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+  .shared-filter-popup .source-option, .shared-filter-popup .race-option, .shared-filter-popup .check-all { min-height: 44px; }
+  .shared-filter-popup select, .shared-filter-popup input[type="search"], .shared-filter-footer button, .shared-filter-heading > button { min-height: 44px; }
+  .shared-filter-heading > button { min-width: 44px; }
+  .load-more { min-height: 44px; }
+}
+@media (max-width: 640px) {
+  .map-record-preview { top: auto; bottom: 62px; left: 12px; width: calc(100% - 24px); max-height: 48%; padding: 12px; }
+  .map-record-preview-head + strong { font-size: 13px; line-height: 1.45; }
+  .map-bottomline { font-size: 9px; line-height: 1.5; }
+  .map-legend-control { text-align: left; white-space: normal; }
+  .records-panel .record-meta { font-size: 11px; }
+  .shared-filter-footer { padding: 10px 16px; }
+}
+@media (max-width: 380px) { .shared-filter-toggle > span:not(.filter-state-count) { display: none; }.icon-button.shared-filter-toggle { gap: 5px; } }
+.record-body { gap: 2px; }
+.record-source { margin-bottom: 0; }
+.record-meta { margin-top: 2px; flex-wrap: nowrap; }
+.record-location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .map-record-preview { width: calc(100% - 84px); } }
+.copy-view-link { display: inline-flex; align-items: center; gap: 7px; margin: 0 0 12px; min-height: 34px; padding: 7px 10px; border: 1px solid #405761; border-radius: 5px; background: #1b2e38; color: #bdcfda; font-size: 11px; }
+.record-export-button { display: grid; place-items: center; flex: none; width: 30px; height: 30px; padding: 0; background: #1b2b33; color: #cbb58e; border: 1px solid #405660; border-radius: 5px; }
+.record-export-button:disabled { opacity: .4; cursor: default; }
+.record-export-link { background: transparent; border: 1px solid #4c5e64; padding: 8px 10px; border-radius: 5px; }
+.app-notice { position: fixed; z-index: 40; right: 18px; top: 78px; max-width: min(400px, calc(100vw - 36px)); display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; background: #1a3039; border: 1px solid #51707b; border-radius: 8px; color: #d0e1e7; font: 12px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; box-shadow: 0 6px 24px #0005; }
+.app-notice > button { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; background: transparent; border: 0; color: #aec7d2; }
+.map-location-message { position: absolute; z-index: 5; top: 110px; left: 18px; right: 65px; max-width: 380px; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px; color: #d9e4e9; background: #182b35f5; border: 1px solid #57717d; border-radius: 6px; font: 12px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.map-location-message button { flex: none; background: transparent; border: 0; color: #b8cfdb; font-size: 20px; padding: 0 4px; }
+.fallback-page { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 30px; text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.fallback-brand { color: #d9b57b; font-size: 13px; letter-spacing: .25em; }.fallback-page h1 { margin: 0; font-size: 26px; font-weight: 500; }.fallback-page p { max-width: 430px; margin: 0; color: #99b0bd; line-height: 1.7; font-size: 14px; }.fallback-page > div { display: flex; gap: 12px; }.fallback-page a,.fallback-page button { display: inline-flex; justify-content: center; padding: 12px 16px; color: #e5c79a; background: #d9b57b12; border: 1px solid #7c6749; border-radius: 6px; font-size: 13px; }
+@media (max-width: 840px) { .record-export-button { width: 40px; height: 40px; }.copy-view-link { min-height: 42px; } }
