@@ -6,6 +6,7 @@ import { fetchCJIC } from '@/lib/cjic-client';
 import { comparisonAreas, comparisonCSV, mergeBreakdowns, percentChange, scopeLabel } from '@/lib/cjic-comparison';
 import type { CJICManifest, CJICResponse, ComparisonMap } from '@/lib/crime';
 import { STANDARD_OFFENSES } from '@/lib/offense-taxonomy.mjs';
+import LoadingSpinner from './LoadingSpinner';
 
 type Cohort = { scope: string; period: string; category: string; race: string };
 type Props = { manifest: CJICManifest; initialScope: string; onMapChange: (value: ComparisonMap | null) => void; onSelectArea: (key: string) => void; selectedAreaKey: string | null };
@@ -113,7 +114,7 @@ export default function CJICComparison({ manifest, initialScope, onMapChange, on
     {unequalDuration && <p className="comparison-notice">These periods have different lengths. Percentage changes are hidden; count differences are descriptive, not annualized trends.</p>}
     {!unequalDuration && <p className="comparison-note">Percentage changes are hidden when either count is below 10; the count difference remains visible.</p>}
     {a.race !== b.race && <p className="comparison-note">The cohorts use different victim-race filters. Crime rows match linked victim races; unlinked crime rows are excluded when a race is selected.</p>}
-    {loading && <p role="status" className="comparison-note">Analyzing all matching CJIC rows…</p>}
+    {loading && <div role="status" className="comparison-note loading-message"><LoadingSpinner /><span>Analyzing all matching CJIC rows…</span></div>}
     {error && <div className="comparison-notice" role="alert">{error}<button className="comparison-retry" onClick={() => setRefresh((value) => value + 1)}><RefreshCw size={13} />Retry comparison</button></div>}
     {result && <>
       <div className="cohort-key"><span><i className="cohort-dot a" />A: {aLabel}</span><span><i className="cohort-dot b" />B: {bLabel}</span></div>
