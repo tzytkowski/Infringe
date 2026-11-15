@@ -18,6 +18,11 @@ export const BUILT_IN_VIEWS = [
   { id: 'news-history', name: 'Historical news citations', view: { sources: ['news'], period: 'all', category: '', races: [], search: '', regionalFocus: 'both' } },
 ];
 
+/** @param {string} period */
+export function isRecentPeriod(period) {
+  return ['24h', '7d', '30d'].includes(period);
+}
+
 /** @param {URLSearchParams} params @param {string[]} allowedSources */
 export function parseViewParams(params, allowedSources) {
   if (![...params.keys()].some((key) => ['sources', 'period', 'category', 'races', 'q', 'focus', 'sort', 'field', 'value'].includes(key))) return null;
@@ -25,11 +30,10 @@ export function parseViewParams(params, allowedSources) {
   const sources = params.get('sources') === '' ? [] : requestedSources.length ? requestedSources : DEFAULT_VIEW.sources;
   // Older all-year links omitted period; new links always specify it.
   const period = params.get('period') || (params.has('sources') ? 'all' : DEFAULT_VIEW.period);
-  const hasCJIC = sources.some((source) => source.startsWith('cjic-'));
   const field = (params.get('field') || 'any').slice(0, 128);
   return {
     sources,
-    period: hasCJIC && ['24h', '7d', '30d'].includes(period) ? 'all' : period === 'all' || ['24h', '7d', '30d'].includes(period) || /^\d{4}$/.test(period) ? period : 'all',
+    period: period === 'all' || isRecentPeriod(period) || /^\d{4}$/.test(period) ? period : 'all',
     category: (params.get('category') || '').replace(/[\x00-\x1f]/g, '').slice(0, 120),
     races: (params.get('races') || '').split(',').filter(Boolean),
     search: (params.get('q') || '').slice(0, 120),

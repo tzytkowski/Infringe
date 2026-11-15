@@ -1,5 +1,9 @@
 /* Analytics panel. Source filtering remains shared with the dashboard. */
 .stats-row.trend-row { display: block; flex: none; order: 0; padding: 16px 18px; min-height: 0; background: #10181d; border-bottom: 1px solid #27343b; }
+.period-coverage-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-bottom: 12px; padding: 6px 12px; border: 1px solid #61533d; border-radius: 8px; color: #e0d0b8; background: #26241e; font-size: 13px; }
+.period-coverage-note p { margin: 0; }
+.period-coverage-note button { min-height: 44px; padding: 6px 10px; border: 1px solid #79664c; border-radius: 5px; color: #e5c79a; background: #d9b57b14; font-size: 12px; }
+.period-coverage-note button:hover, .period-coverage-note button:focus-visible { background: #d9b57b29; }
 .record-trend { min-width: 0; padding: 0; border: 1px solid #304048; border-radius: 12px; background: #152027; overflow: hidden; color: #e1e9ec; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; box-shadow: 0 4px 18px #00000014; }
 .record-trend button, .record-trend input, .record-trend select { font-family: inherit; letter-spacing: 0; }
 .overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 22px; }

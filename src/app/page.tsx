@@ -17,7 +17,7 @@ import { comparisonAreas, comparisonFeatures } from '@/lib/cjic-comparison';
 import { fetchNewsCases, filterNewsCases, type NewsFile } from '@/lib/news-client';
 import { enrichAndLinkIncidents } from '@/lib/incident-links.mjs';
 import { isHomicideCategory, offenseColor, standardCategoryName, STANDARD_OFFENSES } from '@/lib/offense-taxonomy.mjs';
-import { BUILT_IN_VIEWS, DEFAULT_VIEW, parseViewParams, serializeViewParams } from '@/lib/view-state.mjs';
+import { BUILT_IN_VIEWS, DEFAULT_VIEW, isRecentPeriod, parseViewParams, serializeViewParams } from '@/lib/view-state.mjs';
 
 const CrimeMap = dynamic(() => import('@/components/CrimeMap'), { ssr: false });
 const currentYear = new Date().getFullYear();
@@ -72,7 +72,7 @@ export default function Home() {
   const [manifest, setManifest] = useState<CJICManifest | null>(null);
   const [manifestError, setManifestError] = useState<string | null>(null);
   const [remote, setRemote] = useState<Partial<Record<RemoteSource, RemoteState>>>({});
-  const [local, setLocal] = useState<CJICResponse | null>(null);
+  const [localResult, setLocal] = useState<CJICResponse | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);
   const [newsFile, setNewsFile] = useState<NewsFile | null>(null);
@@ -107,6 +107,10 @@ export default function Home() {
   const raceKey = races.join('|');
   const isDetroitOnly = sources.length === 1 && sources[0] === 'detroit';
   const hasCJIC = sources.some(isCJIC);
+  const hasRecentPeriod = isRecentPeriod(period);
+  const cjicOutsidePeriod = hasCJIC && hasRecentPeriod;
+  const activeSources = useMemo(() => cjicOutsidePeriod ? sources.filter((source) => !isCJIC(source)) : sources, [cjicOutsidePeriod, sources]);
+  const local = cjicOutsidePeriod ? null : localResult;
   const hasAgency = sources.some(isRemoteSource);
   const viewKey = `${sourceKey}|${period}|${category}|${raceKey}|${debouncedSearch}|${recordFilterField}|${recordFilter}|${refresh}`;
   const activeView = useRef(viewKey);
@@ -173,7 +177,7 @@ export default function Home() {
   }, [sourceKey, refresh]);
 
   useEffect(() => {
-    if (comparisonMode || !['24h', '7d', '30d'].includes(period)) return;
+    if (comparisonMode || !hasRecentPeriod) return;
     const timer = window.setInterval(() => setRefresh((value) => value + 1), 5 * 60_000);
     return () => window.clearInterval(timer);
   }, [period, comparisonMode]);
@@ -196,7 +200,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const selected = sources.filter(isCJIC);
+    const selected = activeSources.filter(isCJIC);
     setLocal(null);
     setLocalError(null);
     setLocalLoading(selected.length > 0);
@@ -228,6 +232,9 @@ export default function Home() {
     ...(newsFile?.articles.map((item) => new Date(item.publishedAt).getUTCFullYear()) || []),
     ...Object.values(manifest?.sources || {}).flatMap((source) => source.chunks.map((chunk) => chunk.year)),
   ])].filter((year) => Number.isInteger(year) && year <= currentYear).sort((a, b) => b - a), [remoteYears, newsFile, manifest]);
+  const latestCJICYear = years.find((year) => sources.some((source) =>
+    isCJIC(source) && manifest?.sources[source].chunks.some((chunk) => chunk.year === year),
+  ));
   const yearAvailable = (year: number) => sources.some((source) => {
     if (source === 'clemis') return year === currentYear;
     if (source === 'detroit') return (year >= 2016 && year <= currentYear) || remoteYears.includes(year);
@@ -279,12 +286,12 @@ export default function Home() {
   const incidents = useMemo(() => {
     return recordFilter ? sortedIncidents.filter((record) => recordMatchesValue(record, recordFilterField, recordFilter)) : sortedIncidents;
   }, [sortedIncidents, recordFilterField, recordFilter]);
-  const loading = localLoading || (sources.includes('news') && !newsFile && !newsError) || Object.values(remote).some((state) => state?.loading);
+  const loading = (!cjicOutsidePeriod && localLoading) || (sources.includes('news') && !newsFile && !newsError) || Object.values(remote).some((state) => state?.loading);
   const remoteHasMore = Object.values(remote).some((state) => state?.data && (state.data.total === null ? state.data.incidents.length > 0 : state.data.nextOffset < state.data.total));
   const localHasMore = local !== null && local.nextOffset < local.total;
   const total = (local?.total || 0) + newsIncidents.length + Object.values(remote).reduce((sum, state) => sum + (state?.data?.total || 0), 0);
   const loadedCount = sortedIncidents.length;
-  const errors = [...Object.entries(remote).flatMap(([source, state]) => state?.error ? [`${DATA_SOURCES.find((entry) => entry.id === source)?.label}: ${state.error}`] : []), ...(localError ? [`CJIC: ${localError}`] : []), ...(newsError ? [`News cases: ${newsError}`] : [])];
+  const errors = [...Object.entries(remote).flatMap(([source, state]) => state?.error ? [`${DATA_SOURCES.find((entry) => entry.id === source)?.label}: ${state.error}`] : []), ...(!cjicOutsidePeriod && localError ? [`CJIC: ${localError}`] : []), ...(newsError ? [`News cases: ${newsError}`] : [])];
   const selected = sortedIncidents.find((item) => item.id === selectedId) ?? null;
   const relatedRecords = selected?.relatedIncidentIds?.map((id) => sortedIncidents.find((item) => item.id === id)).filter((item) => item !== undefined) || [];
   const selectedArea = local?.areas.find((area) => area.key === selectedAreaKey) ?? null;
@@ -374,9 +381,7 @@ export default function Home() {
     if (category && !standardCategoryName(category)) setCategory('');
     if (next.length === 1 && next[0] === 'detroit') setRegionalFocus('both');
     if (!next.some(isCJIC)) setRaces([]);
-    if (next.some(isCJIC) && ['24h', '7d', '30d'].includes(period)) {
-      setPeriod('all');
-    } else if (next.length === 1 && next[0] === 'clemis' && /^\d{4}$/.test(period) && Number(period) !== currentYear) {
+    if (next.length === 1 && next[0] === 'clemis' && /^\d{4}$/.test(period) && Number(period) !== currentYear) {
       setPeriod('all');
     }
   }
@@ -394,12 +399,12 @@ export default function Home() {
   function openComparison() {
     setComparisonScope(selectedAreaKey || 'all'); setSelectedId(null); setSelectedAreaKey(null); setComparison(null); setComparisonMode(true); setLegendOpen(true); closeFilters();
   }
-  const hasRecentPeriod = ['24h', '7d', '30d'].includes(period);
   const activeFilterCount = Number(sources.length !== 1 || sources[0] !== 'detroit') + Number(period !== DEFAULT_VIEW.period) + Number(Boolean(category)) + Number(races.length > 0) + Number(Boolean(debouncedSearch)) + Number(Boolean(recordFilter));
   const sourceStatus = (source: CrimeSource) => {
     if (!sources.includes(source)) return '';
     if (!isCJIC(source) && races.length) return 'No race field';
     if (source === 'news') return newsError ? 'Unavailable' : newsFile ? `${newsIncidents.length.toLocaleString()} matching / ${(newsFile.cases.length + newsFile.articles.length).toLocaleString()} available` : 'Loading...';
+    if (isCJIC(source) && cjicOutsidePeriod) return 'Available by year';
     if (isCJIC(source)) return localLoading ? 'Loading...' : localError ? 'Unavailable' : `${(local?.sourceCounts[source] || 0).toLocaleString()} rows`;
     const state = remote[source];
     if (state?.error) return 'Unavailable';
@@ -435,8 +440,8 @@ export default function Home() {
       </section>
 
       <section className="filter-section"><div className="section-label"><span>02</span> TIME PERIOD</div><select id="period" aria-label="Reporting period" value={period} onChange={(event) => setPeriod(event.target.value)}>
-        <option value="all">All available years</option><option value="24h" disabled={hasCJIC}>Past 24 hours</option><option value="7d" disabled={hasCJIC}>Past 7 days</option><option value="30d" disabled={hasCJIC}>Past 30 days</option><optgroup label="By year">{years.map((year) => <option value={year} key={year} disabled={!yearAvailable(year)}>{year}{yearAvailable(year) ? '' : ' — unavailable'}</option>)}</optgroup>
-      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CSV dates have year precision. Recent day/week/month filters are disabled while a CJIC source is selected.</p>}{sources.includes('clemis') && <p className="field-note">The live CLEMIS layer currently contains 2026 records and zero 2025 records. Earlier years are disabled when no other selected source covers them.</p>}{sources.includes('news') && <p className="field-note">News combines {newsFile?.cases.length.toLocaleString() || 0} individually reviewed incidents with {newsFile?.articles.length.toLocaleString() || 0} current official publisher-feed articles across crime categories. Reviewed cases use incident dates; feed articles use publication times and are not claimed as verified incidents. RSS cannot provide a complete historical archive.</p>}</section>
+        <option value="all">All available years</option><option value="24h">Past 24 hours</option><option value="7d">Past 7 days</option><option value="30d">Past 30 days</option><optgroup label="By year">{years.map((year) => <option value={year} key={year} disabled={!yearAvailable(year)}>{year}{yearAvailable(year) ? '' : ' — unavailable'}</option>)}</optgroup>
+      </select>{hasCJIC && <p className="field-note">CJIC snapshot: 2021 through June 30, 2026. CJIC records are grouped by year. Choose a year or all available years to include them.</p>}{sources.includes('clemis') && <p className="field-note">The live CLEMIS layer currently contains 2026 records and zero 2025 records. Earlier years are disabled when no other selected source covers them.</p>}{sources.includes('news') && <p className="field-note">News combines {newsFile?.cases.length.toLocaleString() || 0} individually reviewed incidents with {newsFile?.articles.length.toLocaleString() || 0} current official publisher-feed articles across crime categories. Reviewed cases use incident dates; feed articles use publication times and are not claimed as verified incidents. RSS cannot provide a complete historical archive.</p>}</section>
 
       <section className="filter-section"><div className="section-label"><span>03</span> OFFENSE</div><select id="category" aria-label="Crime category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All categories</option><option value="standard:Homicide">Homicide / murder</option><optgroup label="Other standardized categories">{STANDARD_OFFENSES.filter((entry) => entry.id !== 'Homicide').map((entry) => <option value={`standard:${entry.id}`} key={entry.id}>{entry.id}</option>)}</optgroup><optgroup label="Original source labels">{categories.map((name) => <option value={name} key={name}>{name}</option>)}</optgroup></select></section>
 
@@ -457,8 +462,16 @@ export default function Home() {
     </aside>
 
     <main className="main">
-      <div className={`stats-row${comparisonMode ? '' : ' trend-row'}`}>{comparisonMode ? (['a', 'b'] as const).flatMap((side) => (['crime', 'victims'] as const).map((metric) => <div className="stat" key={`${side}-${metric}`}><small>{side.toUpperCase()} · {metric === 'crime' ? 'CRIME ROWS' : 'VICTIM ROWS'}</small><strong>{comparison ? (comparison[side].sourceCounts[metric === 'crime' ? 'cjic-crime' : 'cjic-victim'] || 0).toLocaleString() : '...'}</strong><span>{comparison?.[side === 'a' ? 'aLabel' : 'bLabel'] || 'Preparing comparison'}</span></div>)) : <RecordTrend onPeriodSelect={setPeriod} onOffenseSelect={setCategory} onUseVictims={() => { changeSources(['cjic-victim']); if (['24h', '7d', '30d'].includes(period)) setPeriod('all'); }} sources={sources} period={period} category={category} races={races} search={debouncedSearch} refresh={refresh} field={recordFilterField} value={recordFilter} newsFile={newsFile} newsError={newsError} />}</div>
-      <div className="workspace"><section id="incident-map" className={`map-panel${selected && !comparisonMode ? ' has-record-preview' : ''}`} ref={mapPanelRef}><CrimeMap incidents={comparisonMode ? [] : incidents} selectedId={selectedId} selectedAreaKey={selectedAreaKey} onSelect={selectRecord} resetSignal={resetSignal} locateSignal={locateSignal} sources={comparisonMode ? ['cjic-crime', 'cjic-victim'] : sources} areas={mapAreas} onSelectArea={selectArea} regionalFocus={regionalFocus} metric={effectiveMetric} comparison={comparisonMode ? comparison : null} /><div className="map-topline"><span><Activity size={13} />{comparisonMode ? 'CJIC COMPARISON' : regionalFocus === 'oakland' ? 'OAKLAND COUNTY' : regionalFocus === 'macomb' ? 'MACOMB COUNTY' : 'METRO DETROIT'}</span><div className="map-view-actions"><button className="reset-view" title="Reset map view" aria-label="Reset map view" onClick={() => setResetSignal((value) => value + 1)}><Maximize2 size={14} /></button><button className="reset-view" title="Center map on my location" aria-label="Center map on my location" onClick={() => setLocateSignal((value) => value + 1)}><Crosshair size={14} /></button></div></div>
+      <div className={`stats-row${comparisonMode ? '' : ' trend-row'}`}>
+        {!comparisonMode && cjicOutsidePeriod && <div className="period-coverage-note">
+          <p role="status">Michigan CJIC records are grouped by year. The current date range excludes them.</p>
+          <button type="button" onClick={() => setPeriod(latestCJICYear ? String(latestCJICYear) : 'all')}>
+            {latestCJICYear ? `View ${latestCJICYear} data` : 'View all years'}
+          </button>
+        </div>}
+        {comparisonMode ? (['a', 'b'] as const).flatMap((side) => (['crime', 'victims'] as const).map((metric) => <div className="stat" key={`${side}-${metric}`}><small>{side.toUpperCase()} · {metric === 'crime' ? 'CRIME ROWS' : 'VICTIM ROWS'}</small><strong>{comparison ? (comparison[side].sourceCounts[metric === 'crime' ? 'cjic-crime' : 'cjic-victim'] || 0).toLocaleString() : '...'}</strong><span>{comparison?.[side === 'a' ? 'aLabel' : 'bLabel'] || 'Preparing comparison'}</span></div>)) : <RecordTrend onPeriodSelect={setPeriod} onOffenseSelect={setCategory} onUseVictims={() => { changeSources(['cjic-victim']); if (hasRecentPeriod) setPeriod('all'); }} sources={activeSources} period={period} category={category} races={races} search={debouncedSearch} refresh={refresh} field={recordFilterField} value={recordFilter} newsFile={newsFile} newsError={newsError} />}
+      </div>
+      <div className="workspace"><section id="incident-map" className={`map-panel${selected && !comparisonMode ? ' has-record-preview' : ''}`} ref={mapPanelRef}><CrimeMap incidents={comparisonMode ? [] : incidents} selectedId={selectedId} selectedAreaKey={selectedAreaKey} onSelect={selectRecord} resetSignal={resetSignal} locateSignal={locateSignal} sources={comparisonMode ? ['cjic-crime', 'cjic-victim'] : activeSources} areas={mapAreas} onSelectArea={selectArea} regionalFocus={regionalFocus} metric={effectiveMetric} comparison={comparisonMode ? comparison : null} /><div className="map-topline"><span><Activity size={13} />{comparisonMode ? 'CJIC COMPARISON' : regionalFocus === 'oakland' ? 'OAKLAND COUNTY' : regionalFocus === 'macomb' ? 'MACOMB COUNTY' : 'METRO DETROIT'}</span><div className="map-view-actions"><button className="reset-view" title="Reset map view" aria-label="Reset map view" onClick={() => setResetSignal((value) => value + 1)}><Maximize2 size={14} /></button><button className="reset-view" title="Center map on my location" aria-label="Center map on my location" onClick={() => setLocateSignal((value) => value + 1)}><Crosshair size={14} /></button></div></div>
         {selected && !comparisonMode && <article className="map-record-preview" aria-label="Selected public record"><div className="map-record-preview-head"><span>{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel || 'PUBLIC RECORD'}</span><button type="button" aria-label="Close selected record" onClick={() => setSelectedId(null)}><X size={15} /></button></div><strong>{selected.description}</strong><p>{recordLocation(selected) || 'Location unavailable'} · {recordDate(selected)}</p><details><summary>Record details</summary><dl>{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{recordFieldLabel(field)}</dt><dd>{value === '' || value === null ? 'Not reported' : String(value)}</dd></div>)}</dl></details></article>}
         {comparisonMode && comparison && <div className="comparison-map-summary"><span><i className="cohort-dot a" />A · {comparison.aLabel}</span><span><i className="cohort-dot b" />B · {comparison.bLabel}</span></div>}
         {legendOpen && <div className="heat-legend" aria-label="Map legend">
@@ -475,7 +488,7 @@ export default function Home() {
             </> : <>
               {hasAgency && <div><div className="heat-legend-heading"><span>AGENCY INCIDENTS</span><b>RELATIVE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>LOW</span><span>MODERATE</span><span>HIGH</span></div></div>}
               {sources.includes('news') && <small className="geography-note"><i className="news-legend-dot" /> Orange circles: reviewed news cases at approximate reported intersections. These are excluded from agency heat and may overlap police records.</small>}
-              {hasCJIC && <div className={hasAgency ? 'area-legend' : ''}><div className="heat-legend-heading"><span>CJIC {effectiveMetric === 'crime' ? 'CRIME' : 'VICTIM'} ROWS / SQ KM</span><b>LOG SCALE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>0</span><span>{densityLabel(densityScaleMidpoint(maximumDensity))}</span><span>{densityLabel(maximumDensity)}</span></div><small className="geography-note">Gray: no matching rows. Reporting boundaries, not incident points. {countyOnlyRows.toLocaleString()} county-only rows excluded from municipal heat.</small></div>}
+              {hasCJIC && !cjicOutsidePeriod && <div className={hasAgency ? 'area-legend' : ''}><div className="heat-legend-heading"><span>CJIC {effectiveMetric === 'crime' ? 'CRIME' : 'VICTIM'} ROWS / SQ KM</span><b>LOG SCALE</b></div><div className="heat-legend-scale" /><div className="heat-legend-labels"><span>0</span><span>{densityLabel(densityScaleMidpoint(maximumDensity))}</span><span>{densityLabel(maximumDensity)}</span></div><small className="geography-note">Gray: no matching rows. Reporting boundaries, not incident points. {countyOnlyRows.toLocaleString()} county-only rows excluded from municipal heat.</small></div>}
             </>}
           </div>
         </div>}
@@ -487,7 +500,7 @@ export default function Home() {
         {selectedArea && <div className="selected-card"><div className="selected-eyebrow">CJIC REPORTING AREA<button className="icon-button" aria-label="Close area details" title="Close area details" onClick={() => setSelectedAreaKey(null)}><X size={13} /></button></div><strong>{selectedArea.city}, {selectedArea.county}</strong><p>{sources.includes('cjic-crime') ? `${selectedArea.crime.toLocaleString()} crime rows` : 'Crime source not selected'} / {sources.includes('cjic-victim') ? `${selectedArea.victims.toLocaleString()} victim rows` : 'Victim source not selected'}</p><p>{selectedArea.geographyLabel}</p><p>{selectedArea.precision === 'county' ? `No verified municipal boundary. Original reporting labels: ${selectedArea.reportingLabels.join(', ')}. These rows do not contribute to municipal heat.` : `${densityLabel(reportingDensity(selectedArea, effectiveMetric)!)} ${effectiveMetric === 'crime' ? 'crime' : 'victim'} rows per sq km / ${densityLabel(selectedArea.areaKm2)} sq km. Locations within the boundary are unknown.`}</p><dl className="record-fields">{Object.entries(selectedArea.races).map(([race, count]) => <div key={race}><dt>{race}</dt><dd>{count.toLocaleString()}</dd></div>)}</dl><p>{sources.includes('cjic-victim') ? 'Race counts represent matching victim rows.' : 'Race counts represent crime rows with linked victims; a row can have multiple victim races.'}</p><button className="compare-area-button" onClick={openComparison}>Compare this reporting area</button></div>}
         {selected && <div className="selected-card"><div className="selected-eyebrow" style={{ color: offenseColor(selected.category, selected.description, selected.standardOffense) }}>{DATA_SOURCES.find((entry) => entry.id === selected.source)?.shortLabel}{selected.recordKind === 'publisher-rss-article' ? ' · ARTICLE' : selected.recordKind === 'reviewed-news-incident' ? ' · REVIEWED' : ''}{selected.standardOffense ? ` · ${selected.standardOffense.toUpperCase()}` : ''}<button className="icon-button" aria-label="Close record details" title="Close record details" onClick={() => setSelectedId(null)}><X size={13} /></button></div><strong>{selected.description}</strong><p>{recordLocation(selected) || 'Location unavailable'} / {recordDate(selected)}</p><p><strong>Standard offense:</strong> {selected.standardOffense || 'Other'} · Original label: {selected.category}</p>{isCJIC(selected.source) && <p>{selected.locationPrecision === 'county' ? 'County-only location.' : 'City / township reporting area.'} Exact incident coordinates are absent from the CSV.</p>}{selected.source === 'cjic-crime' && <p>Linked victim races: {selected.victimRaces?.join(', ') || 'No linked victim record'}</p>}{relatedRecords.length > 0 && <div className="related-records"><strong><Link2 size={13} />Likely same incident</strong><p>Date and location evidence links these source entries; totals remain separate.</p>{relatedRecords.map((record) => <button type="button" key={record.id} onClick={() => selectRecord(record.id)}>{DATA_SOURCES.find((source) => source.id === record.source)?.shortLabel} · {record.description}</button>)}</div>}<dl className="record-fields" aria-label="Record details">{Object.entries(selected.fields).map(([field, value]) => <div key={field}><dt>{recordFieldLabel(field)}</dt><dd>{value === '' || value === null ? <span className="missing-value">Not reported</span> : String(value)}</dd></div>)}</dl><button type="button" className="small-link record-export-link" onClick={() => downloadCSV(`infringe-${selected.id}.csv`, recordsCSV([selected]))}><Download size={13} />Export this record</button></div>}
         {selected?.source === 'news' && <div className="news-citations"><strong>Original reporting</strong><p>{selected.recordKind === 'publisher-rss-article' ? 'Official publisher-feed metadata. The displayed date is publication time; incident facts and location have not been individually reviewed.' : 'One case may have several articles. The map marker is approximate; see the location note above.'}</p>{selected.sourceArticles?.map((article) => <a href={article.url} key={article.url} target="_blank" rel="noreferrer">{article.outlet} report <ExternalLink size={12} /></a>)}</div>}
-        <RecordList loading={loading} incidents={incidents} selectedId={selectedId} onSelect={selectRecord} message={incidents.length ? undefined : loading ? 'Loading selected public records...' : !sources.length ? 'No data sources selected.' : hasRecentPeriod && hasCJIC ? 'CJIC has year-only dates. Select a year or all available years to see those records.' : sources.length === 1 && sources[0] === 'news' && newsFile ? `No news entries match this period. ${(newsFile.cases.length + newsFile.articles.length).toLocaleString()} reviewed incidents and publisher articles are available under their supported periods.` : races.includes('__none__') ? 'No races selected.' : 'No records match the selected filters.'} />
+        <RecordList loading={loading} incidents={incidents} selectedId={selectedId} onSelect={selectRecord} message={incidents.length ? undefined : loading ? 'Loading selected public records...' : !sources.length ? 'No data sources selected.' : cjicOutsidePeriod && !activeSources.length ? 'Choose a year to view CJIC records.' : sources.length === 1 && sources[0] === 'news' && newsFile ? `No news entries match this period. ${(newsFile.cases.length + newsFile.articles.length).toLocaleString()} reviewed incidents and publisher articles are available under their supported periods.` : races.includes('__none__') ? 'No races selected.' : 'No records match the selected filters.'} />
         {!loading && (remoteHasMore || localHasMore) && <button className="load-more" disabled={loadingMore} onClick={loadMore}>{loadingMore ? <><LoadingSpinner size={16} />Loading...</> : <>Load more source records ({Math.max(0, total - loadedCount).toLocaleString()} not loaded) <ArrowDown size={14} /></>}</button>}
         </div>}
       </section></div>

@@ -48,6 +48,18 @@ test('all-years, empty-source and field-filter links survive reloads', () => {
     assert.deepEqual(parseViewParams(serializeViewParams(view), allowed), view);
   }
   assert.equal(parseViewParams(new URLSearchParams('sources=cjic-crime'), allowed).period, 'all');
-  assert.equal(parseViewParams(new URLSearchParams('sources=cjic-crime&period=24h'), allowed).period, 'all');
   assert.equal(parseViewParams(new URLSearchParams('sources=clemis&period=24h'), allowed).sources[0], 'clemis');
+});
+
+test('shared and saved views retain recent periods with CJIC selected', () => {
+  const allowed = ['detroit', 'cjic-crime', 'cjic-victim'];
+  for (const sources of [['cjic-crime'], ['detroit', 'cjic-crime', 'cjic-victim']]) {
+    for (const period of ['24h', '7d', '30d']) {
+      const params = new URLSearchParams({ sources: sources.join(','), period });
+      const view = parseViewParams(params, allowed);
+      assert.equal(view.period, period);
+      assert.deepEqual(view.sources, sources);
+      assert.deepEqual(parseViewParams(serializeViewParams(view), allowed), view);
+    }
+  }
 });
