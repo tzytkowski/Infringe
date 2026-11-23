@@ -9,6 +9,7 @@ import { comparisonFeatures } from '@/lib/cjic-comparison';
 type Props = {
   incidents: Incident[];
   selectedId: string | null;
+  recordFocusSignal: number;
   selectedAreaKey: string | null;
   onSelect: (id: string) => void;
   resetSignal: number;
@@ -34,7 +35,7 @@ function fitBoundsOneLevelCloser(instance: maplibregl.Map, bounds: [number, numb
   instance.easeTo({ center: [center.lng + longitudeOffset, center.lat + latitudeOffset], zoom: Math.min((camera.zoom ?? instance.getZoom()) + 1, 17), bearing: camera.bearing, duration });
 }
 
-export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSelect, resetSignal, locateSignal, sources, areas, onSelectArea, regionalFocus, metric, comparison }: Props) {
+export default function CrimeMap({ incidents, selectedId, recordFocusSignal, selectedAreaKey, onSelect, resetSignal, locateSignal, sources, areas, onSelectArea, regionalFocus, metric, comparison }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
@@ -63,20 +64,14 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   const bounds = detroitOnly ? DETROIT_BOUNDS
     : (sources.includes('clemis') || sources.includes('detroit') || sources.includes('news')) && regionalFocus === 'both' ? COMBINED_BOUNDS : REGIONAL_FOCUS_BOUNDS[regionalFocus];
   const boundsKey = bounds.join(',');
-  const boundsRef = useRef(bounds);
   // Detroit used the shared two-mile-south offset. A three-mile-north offset moves
   // that existing camera five miles north without changing the other presets.
   const centerNorthMiles = detroitOnly ? 3 : -2;
   const centerEastMiles = detroitOnly ? 3 : 5;
-  const centerNorthMilesRef = useRef(centerNorthMiles);
-  const centerEastMilesRef = useRef(centerEastMiles);
   const comparisonBounds = comparison && areas.length ? areas.reduce<[number, number, number, number]>((result, area) => [
     Math.min(result[0], area.bounds[0]), Math.min(result[1], area.bounds[1]), Math.max(result[2], area.bounds[2]), Math.max(result[3], area.bounds[3]),
   ], [Infinity, Infinity, -Infinity, -Infinity]) : null;
   const comparisonBoundsKey = comparisonBounds?.join(',') ?? '';
-  boundsRef.current = comparisonBounds || bounds;
-  centerNorthMilesRef.current = centerNorthMiles;
-  centerEastMilesRef.current = centerEastMiles;
 
   useEffect(() => {
     if (!container.current || map.current) return;
@@ -84,7 +79,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     let instance: maplibregl.Map;
     try { instance = new maplibregl.Map({
       container: container.current,
-      cooperativeGestures: true,
+      cooperativeGestures: false,
       style: {
         version: 8,
         sources: {
@@ -130,8 +125,8 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     instance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     const resizeObserver = new ResizeObserver(() => {
+      // Preserve the selected location when changing views or rotating a phone.
       instance.resize();
-      fitBoundsOneLevelCloser(instance, boundsRef.current, 28, 0, centerNorthMilesRef.current, centerEastMilesRef.current);
     });
     resizeObserver.observe(container.current);
     instance.on('style.load', () => {
@@ -329,6 +324,7 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
   useEffect(() => {
     const instance = map.current;
     if (!instance || !instance.getLayer('selected-halo')) return;
+    instance.resize();
     const selected = incidents.find((item) => item.id === selectedId);
     const filter: maplibregl.FilterSpecification = ['==', ['get', 'id'], selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') ? selectedId ?? '' : ''];
     instance.setFilter('selected-halo', filter);
@@ -337,9 +333,16 @@ export default function CrimeMap({ incidents, selectedId, selectedAreaKey, onSel
     const key = selected?.areaKey || selectedAreaKey;
     instance.setFilter('selected-area', ['==', ['get', 'key'], key ?? '']);
     const area = areas.find((item) => item.key === key);
-    if (area) instance.fitBounds(area.bounds, { padding: 48, maxZoom: 13, duration: 650 });
-    else if (selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') && selected.longitude !== null && selected.latitude !== null) instance.easeTo({ center: [selected.longitude, selected.latitude], zoom: Math.max(instance.getZoom(), 12), duration: 650 });
-  }, [selectedId, selectedAreaKey, incidents, areas, mapReady]);
+    if (area) instance.fitBounds(area.bounds, { padding: 48, maxZoom: 13, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 650 });
+    else if (selected && ['point', 'approximate-point'].includes(selected.locationPrecision || '') && selected.longitude !== null && selected.latitude !== null) {
+      const { clientWidth, clientHeight } = instance.getContainer();
+      // Leave the selected point visible beside or above its small description card.
+      const offset: [number, number] = window.matchMedia('(max-width: 960px)').matches
+        ? [0, -Math.min(120, clientHeight * .2)]
+        : [clientWidth < 760 ? Math.min(120, clientWidth * .2) : 0, 0];
+      instance.easeTo({ center: [selected.longitude, selected.latitude], offset, zoom: Math.max(instance.getZoom(), 12), duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 650 });
+    }
+  }, [selectedId, selectedAreaKey, incidents, areas, mapReady, recordFocusSignal]);
 
   useEffect(() => {
     if (map.current) fitBoundsOneLevelCloser(map.current, bounds, 28, 700, centerNorthMiles, centerEastMiles);

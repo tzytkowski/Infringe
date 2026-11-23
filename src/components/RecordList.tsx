@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUpRight, MapPin } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { DATA_SOURCES, recordDate, type Incident } from '@/lib/crime';
 import { offenseColor } from '@/lib/offense-taxonomy.mjs';
 import LoadingSpinner from './LoadingSpinner';
 
-const rowHeight = 126;
+const rowHeight = 144;
 export default function RecordList({ incidents, selectedId, onSelect, message, loading = false }: {
   incidents: Incident[]; selectedId: string | null; onSelect: (id: string) => void; message?: string; loading?: boolean;
 }) {
@@ -46,11 +46,11 @@ export default function RecordList({ incidents, selectedId, onSelect, message, l
       {incidents.slice(start, end).map((item, index) => {
         const source = DATA_SOURCES.find((entry) => entry.id === item.source)!;
         const categoryColor = offenseColor(item.category, item.description, item.standardOffense);
-        return <button className={`record ${selectedId === item.id ? 'active' : ''}`} style={compact ? undefined : { top: (start + index) * rowHeight, height: rowHeight }} key={item.id} onClick={() => onSelect(item.id)}>
+        return <button className={`record ${selectedId === item.id ? 'active' : ''}`} style={compact ? undefined : { top: (start + index) * rowHeight, height: rowHeight }} key={item.id} aria-pressed={selectedId === item.id} onClick={() => onSelect(item.id)}>
           <span className="record-accent" style={{ background: categoryColor, color: categoryColor }} />
           <span className="record-body"><span className="record-source" style={{ color: categoryColor }}>{source.shortLabel}{item.recordKind === 'publisher-rss-article' ? ' · ARTICLE' : item.recordKind === 'reviewed-news-incident' ? ' · REVIEWED' : ''}{item.standardOffense ? ` · ${item.standardOffense.toUpperCase()}` : ''}{item.relatedIncidentIds?.length ? ` · ${item.relatedIncidentIds.length} LINKED` : ''}{item.race ? ` / ${item.race}` : ''}</span>
             <strong>{item.description}</strong><span className="record-meta"><MapPin size={11} /><span className="record-location">{(item.source === 'news' ? item.intersection : item.neighborhood || item.intersection) || 'Location not available'}{item.county ? `, ${item.county}` : ''}</span></span>
-            <span className="record-meta">{recordDate(item)}</span></span><ArrowUpRight size={14} className="record-arrow" />
+            <span className="record-meta">{recordDate(item)}</span></span><MapPin size={16} className="record-arrow" aria-hidden="true" />
         </button>;
       })}
     </div>

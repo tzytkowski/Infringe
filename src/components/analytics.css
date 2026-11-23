@@ -4,7 +4,7 @@
 .period-coverage-note p { margin: 0; }
 .period-coverage-note button { min-height: 44px; padding: 6px 10px; border: 1px solid #79664c; border-radius: 5px; color: #e5c79a; background: #d9b57b14; font-size: 12px; }
 .period-coverage-note button:hover, .period-coverage-note button:focus-visible { background: #d9b57b29; }
-.record-trend { min-width: 0; padding: 0; border: 1px solid #304048; border-radius: 12px; background: #152027; overflow: hidden; color: #e1e9ec; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; box-shadow: 0 4px 18px #00000014; }
+.record-trend { min-width: 0; padding: 0; border: 1px solid #304048; border-radius: 12px; background: #152027; overflow: hidden; color: #e1e9ec; font-family: var(--font-ui); letter-spacing: 0; box-shadow: 0 4px 18px #00000014; }
 .record-trend button, .record-trend input, .record-trend select { font-family: inherit; letter-spacing: 0; }
 .overview-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 22px; }
 .overview-title, .overview-actions { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -45,7 +45,7 @@
 .trend-average-control i { width: 12px; border-top: 2px dashed #6ab6ad; }
 .trend-plot-wrap { position: relative; }
 .trend-plot { display: block; width: 100%; height: 210px; overflow: visible; outline-offset: 3px; }
-.trend-plot text { fill: #8aa3b1; font: 11px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; }
+.trend-plot text { fill: #8aa3b1; font: 11px var(--font-ui); font-variant-numeric: tabular-nums; }
 .trend-grid { stroke: #30424b; stroke-width: 1; stroke-dasharray: 2 5; }
 .trend-grid.baseline { stroke-dasharray: none; }
 .trend-line { fill: none; stroke: #d9b57b; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
@@ -80,8 +80,8 @@
 .demographic-ring { display: flex; flex-direction: column; align-items: center; }
 .race-donut { display: block; width: 230px; height: 230px; }
 .race-donut circle { transition: opacity .15s, stroke-width .15s; }
-.race-total { fill: #eee5d8; font: 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-weight: 500; letter-spacing: -1px; }
-.race-total-label { fill: #8ba4b2; font: 9px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 1.1px; }
+.race-total { fill: #eee5d8; font: 32px var(--font-ui); font-weight: 500; letter-spacing: -1px; }
+.race-total-label { fill: #8ba4b2; font: 9px var(--font-ui); letter-spacing: 1.1px; }
 .ring-selection { display: flex; align-items: center; gap: 7px; color: #aebfca; font-size: 11px; text-align: center; }
 .ring-selection > i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
 .demographic-table { min-width: 0; }
@@ -115,7 +115,7 @@
 .analysis-loading > span:not(.loading-spinner) { font-size: 12px; padding: 10px 16px; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .race-donut circle, .composition-track > div { transition: none; } }
 /* Native popovers escape the card's clipping and close on Escape or outside click. */
-.trend-filter-popup, .analytics-about { position: fixed; inset: 0; width: min(680px, calc(100vw - 32px)); max-height: min(82dvh, 720px); margin: auto; padding: 22px; overflow-y: auto; color: #c1d2db; background: #16242d; border: 1px solid #4c616d; border-radius: 12px; box-shadow: 0 24px 90px #0009; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; letter-spacing: 0; }
+.trend-filter-popup, .analytics-about { position: fixed; inset: 0; width: min(680px, calc(100vw - 32px)); max-height: min(82dvh, 720px); margin: auto; padding: 22px; overflow-y: auto; color: #c1d2db; background: #16242d; border: 1px solid #4c616d; border-radius: 12px; box-shadow: 0 24px 90px #0009; font-family: var(--font-ui); letter-spacing: 0; }
 .trend-filter-popup::backdrop, .analytics-about::backdrop { background: #02070c70; backdrop-filter: blur(3px); }
 .trend-popup-heading, .trend-popup-heading > div { display: flex; align-items: center; gap: 10px; }
 .trend-popup-heading { justify-content: space-between; color: #d9b57b; }

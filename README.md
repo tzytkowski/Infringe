@@ -49,6 +49,12 @@ Then open <http://127.0.0.1:3001/Infringe/>.
 
 If you use a custom domain, remove the `NEXT_PUBLIC_BASE_PATH` setting in the workflow so asset URLs start at `/`. Public ArcGIS requests are made directly from the browser; any later private API or scanner ingestion will need a separate server.
 
+## Workspace navigation
+
+Use **Map**, **Records**, **Insights**, and **Compare** to switch tasks. On phones these controls stay at the bottom of the screen. The map supports one-finger panning, and search and filters are shared across the workspace. Active filter chips show the current selection and let you clear individual filters.
+
+Selecting a record goes directly to its map point or reporting boundary and opens a small description card on the map. Expand **Record details** for the original fields, related records, source articles, and export. Entries without a reported map location are explicitly labeled. Returning to Records preserves your page and scroll position.
+
 ## CJIC Files and Race Filters
 
 The downloaded `public/data/michigan-cjic/crime-live.csv` and `victim-live.csv` contain only Macomb and Oakland counties, with 500,937 crime rows and 320,517 victim rows for 2021-2026. They are tab-delimited UTF-16 exports despite the `.csv` extension. The downloaded Live Data snapshot ends June 30, 2026; it is not a continuously updating feed.
@@ -63,7 +69,7 @@ Replace the two source files and restart or run `npm run data:cjic` to prepare a
 
 ## CJIC comparison and analysis
 
-Open **Compare & analyze** beside the records tab, or select a reporting area and choose **Compare this reporting area**. Cohorts A and B each have independent place (both counties, one county, a municipality, or county-only locations), year, offense and victim-race filters. Both CJIC exports are always included. The default compares 2024 with 2025, the last two complete years in the bundled snapshot.
+Open **Compare** in the workspace navigation, or select a reporting area and choose **Compare this reporting area**. Cohorts A and B each have independent place (both counties, one county, a municipality, or county-only locations), year, offense and victim-race filters. Both CJIC exports are always included. The default compares 2024 with 2025, the last two complete years in the bundled snapshot.
 
 The worker aggregates every matching export row before any record pagination. The panel shows separate crime/victim totals, absolute and percentage changes, victim-to-crime row-volume ratios, sortable place tables, paired charts, offense breakdowns, year trends and victim race/age/sex breakdowns. **Export data** downloads cohort settings, all place totals and the selected breakdown as CSV. Analysis is calculated locally in the browser and uses no paid analysis service.
 
@@ -75,7 +81,7 @@ The 2026 snapshot stops June 30; comparisons involving it are flagged as partial
 
 ## Dashboard charts
 
-One Filters popup controls the map, charts and records. Activity aggregates the entire matching query before pagination, uses integer axis intervals, and offers a three-bucket trailing average. Offenses shows major categories, always retaining homicide; selecting a named category filters the dashboard. Victim race uses CJIC victim rows only and retains unknown race. Patterns uses exact timestamps in Eastern Time and excludes annual and date-only records. Source row units and coverage remain labeled.
+Open **Insights** for charts. One **Filters** sheet controls the map, insights, and records. Activity aggregates the entire matching query before pagination, uses integer axis intervals, and offers a three-bucket trailing average. Offenses shows major categories, always retaining homicide; selecting a named category filters the dashboard. Victim race uses CJIC victim rows only and retains unknown race. Patterns uses exact timestamps in Eastern Time and excludes annual and date-only records. Source row units and coverage remain labeled.
 
 Use Quick views to save filters or copy a shareable URL. Record exports include only the currently loaded, filtered rows; comparison exports include complete cohort aggregates. Map startup and geolocation failures show recoverable messages without preventing access to records or charts.
 
@@ -89,7 +95,7 @@ Use Quick views to save filters or copy a shareable URL. Record exports include 
 
 ## Views, taxonomy, and linked records
 
-Filter state is encoded in the page URL, including sources, period, standardized or original offense, victim race, search, map focus, record sort, and field/value filters. The **Quick views** section provides common presets and stores user-named views in that browser's local storage.
+Filter state is encoded in the page URL, including sources, period, standardized or original offense, victim race, search, map focus, record sort, and field/value filters. The **Saved & quick views** section inside Filters provides common presets and stores user-named views in that browser's local storage.
 
 Standardized offense categories translate common homicide, assault, robbery, theft, fraud, weapons, drug, and related terminology across sources. Original source labels remain visible and unchanged on every record. Counts also retain their source unit: Detroit, CLEMIS, and CJIC crime entries are offense rows; CJIC victim entries are victim rows; local-news entries are reviewed incidents. Combined totals are source-entry volumes, not deduplicated crimes or people.
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './globals.css';
+import './workspace.css';
 
 export const metadata: Metadata = {
   title: 'Infringe | Metro Detroit Crime Atlas',
